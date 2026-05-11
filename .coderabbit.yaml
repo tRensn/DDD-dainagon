@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "ja"
+early_access: false
+
+reviews:
+  profile: "chill"
+  high_level_summary: true
+  review_status: true
+  collapse_walkthrough: true
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 10
+    drafts: true
+    ignore_title_keywords:
+      - "WIP"
+      - "[skip review]"
+    labels:
+      - "!do-not-review"
+    ignore_usernames:
+      - "dependabot[bot]"
+      - "renovate[bot]"
+      - "github-actions[bot]"
+  path_filters:
+    - "!node_modules/**"
+    - "!dist/**"
+    - "!build/**"
+    - "!out/**"
+    - "!coverage/**"
+    - "!public/assets/**"
+    - "!package-lock.json"
+    - "src/**"
+    - "public/js/**"
+    - "server.js"
+    - "docs/**"
+  path_instructions:
+    - path: "src/backend/**"
+      instructions: |
+        Phaserや描画ライブラリに依存しない純粋なロジックを優先してレビューしてください。
+        ランキング、スコア、フィーバー判定はフロント担当が呼び出しやすい安定したAPIか確認してください。
+    - path: "public/js/**"
+      instructions: |
+        PhaserのScene責務、アセットキー、入力処理、状態遷移がバックエンドの共有定数とずれていないか確認してください。
+    - path: "docs/**"
+      instructions: |
+        ハッカソン中にチーム4名が迷わず使える短さと具体性になっているか確認してください。
+
+chat:
+  auto_reply: true
