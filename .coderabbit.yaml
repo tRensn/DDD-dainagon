@@ -12,6 +12,9 @@ reviews:
     auto_incremental_review: true
     auto_pause_after_reviewed_commits: 10
     drafts: true
+    base_branches:
+      - "main"
+      - "develop"
     ignore_title_keywords:
       - "WIP"
       - "[skip review]"
@@ -32,6 +35,15 @@ reviews:
     - "src/**"
     - "public/js/**"
     - "server.js"
+    - "package.json"
+    - ".coderabbit.yaml"
+    - ".github/**"
+    - ".vscode/**"
+    - "eslint.config.cjs"
+    - ".prettierrc.json"
+    - ".prettierignore"
+    - ".editorconfig"
+    - ".gitattributes"
     - "docs/**"
   path_instructions:
     - path: "src/backend/**"
