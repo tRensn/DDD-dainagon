@@ -5,12 +5,15 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "lint": "npx eslint .",
+    "format": "npx prettier . --write",
+    "format:check": "npx prettier . --check"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "express": "^5.2.1",
     "phaser": "^4.1.0"
