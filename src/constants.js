@@ -1,19 +1,21 @@
 export const ICE_TYPES = {
-  VANILLA: 'vanilla',
-  CHOCO: 'choco',
+  DAINAGON_AZUKI: 'dainagon_azuki',
   STRAWBERRY: 'strawberry',
-  MATCHA: 'matcha',
-  MINT: 'mint',
+  COOKIE_AND_CREAM: 'cookie_and_cream',
+  CHOCO_MINT: 'choco_mint',
 };
 
-export const SCORE_BASE = {
-  MATCH_3: 100,
-  FEVER_MATCH_3: 200,
+export const ICE_TYPE_SCORES = {
+  [ICE_TYPES.DAINAGON_AZUKI]: 150,
+  [ICE_TYPES.STRAWBERRY]: 100,
+  [ICE_TYPES.COOKIE_AND_CREAM]: 120,
+  [ICE_TYPES.CHOCO_MINT]: 130,
 };
 
 export const GAME_PARAMETERS = {
   ICE_MELT_TIME_MS: 30000,
-  FEVER_THRESHOLD: 10,
+  FEVER_TOTAL_CLEARS_THRESHOLD: 10,
+  FEVER_CHAIN_THRESHOLD: 2,
   FEVER_DURATION_MS: 15000,
 };
 
@@ -25,8 +27,8 @@ export const GAME_PHASES = {
 };
 
 export const COMBO_SCORE = {
-  BASE_MULTIPLIER: 1,
-  BONUS_PER_EXTRA_ICE: 0.25,
+  EXTRA_ICE_BONUS: 30,
+  CHAIN_COMBO_MULTIPLIER_STEP: 0.5,
   FEVER_MULTIPLIER: 2,
 };
 
@@ -36,9 +38,8 @@ export const BOARD_SETTINGS = {
 };
 
 export const ASSET_KEYS = {
-  ICE_VANILLA: 'ice_vanilla',
-  ICE_CHOCO: 'ice_choco',
+  ICE_DAINAGON_AZUKI: 'ice_dainagon_azuki',
   ICE_STRAWBERRY: 'ice_strawberry',
-  ICE_MATCHA: 'ice_matcha',
-  ICE_MINT: 'ice_mint',
+  ICE_COOKIE_AND_CREAM: 'ice_cookie_and_cream',
+  ICE_CHOCO_MINT: 'ice_choco_mint',
 };

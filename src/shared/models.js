@@ -2,7 +2,7 @@ import { GAME_PARAMETERS, ICE_TYPES } from '../constants.js';
 
 export const ICE_MODEL_TEMPLATE = {
   id: '',
-  type: ICE_TYPES.VANILLA,
+  type: ICE_TYPES.DAINAGON_AZUKI,
   isFrozen: false,
   meltLevel: 0,
   placedAt: 0,
@@ -12,7 +12,7 @@ export const ICE_MODEL_TEMPLATE = {
 
 export function createIceModel({
   id,
-  type = ICE_TYPES.VANILLA,
+  type = ICE_TYPES.DAINAGON_AZUKI,
   isFrozen = false,
   meltLevel = 0,
   placedAt = Date.now(),

@@ -6,11 +6,10 @@
 
 置き場所: `public/assets/images/`
 
-- `ice_vanilla.png`
-- `ice_choco.png`
+- `ice_dainagon_azuki.png`
 - `ice_strawberry.png`
-- `ice_matcha.png`
-- `ice_mint.png`
+- `ice_cookie_and_cream.png`
+- `ice_choco_mint.png`
 - `bg_game.png`
 - `ui_button.png`
 
