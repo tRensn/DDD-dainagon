@@ -28,7 +28,7 @@
   ['dainagon_azuki', 'strawberry', null],
   ['cookie_and_cream', 'dainagon_azuki', null],
   ['choco_mint', 'strawberry', 'dainagon_azuki'],
-]
+];
 ```
 
 - 空セルは `null` を推奨。

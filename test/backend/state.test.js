@@ -244,8 +244,7 @@ test('calculateMatchScore adds an extra ice bonus for more than 3 matches', () =
 });
 
 test('calculateMatchScore adds the extra ice bonus for each ice over 3', () => {
-  const expectedScore =
-    ICE_TYPE_SCORES[ICE_TYPES.DAINAGON_AZUKI] + COMBO_SCORE.EXTRA_ICE_BONUS * 2;
+  const expectedScore = ICE_TYPE_SCORES[ICE_TYPES.DAINAGON_AZUKI] + COMBO_SCORE.EXTRA_ICE_BONUS * 2;
 
   assert.equal(calculateMatchScore(5, { iceType: ICE_TYPES.DAINAGON_AZUKI }), expectedScore);
 });
@@ -314,7 +313,10 @@ test('calculateClearScore sums simultaneous clears without simultaneous combo mu
       score: ICE_TYPE_SCORES[ICE_TYPES.STRAWBERRY] + COMBO_SCORE.EXTRA_ICE_BONUS * 2,
     },
   ]);
-  assert.equal(result.baseScore, ICE_TYPE_SCORES[ICE_TYPES.CHOCO_MINT] + ICE_TYPE_SCORES[ICE_TYPES.STRAWBERRY]);
+  assert.equal(
+    result.baseScore,
+    ICE_TYPE_SCORES[ICE_TYPES.CHOCO_MINT] + ICE_TYPE_SCORES[ICE_TYPES.STRAWBERRY],
+  );
   assert.equal(result.extraIceBonus, COMBO_SCORE.EXTRA_ICE_BONUS * 3);
   assert.equal(result.feverMultiplier, 1);
   assert.equal(result.chainComboMultiplier, 1);

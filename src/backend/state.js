@@ -146,7 +146,10 @@ export function calculateClearScore(matches, { isFever = false, chainCombo = 1 }
     };
   });
   const baseScore = matchScores.reduce((total, matchScore) => total + matchScore.baseScore, 0);
-  const extraIceBonus = matchScores.reduce((total, matchScore) => total + matchScore.extraIceBonus, 0);
+  const extraIceBonus = matchScores.reduce(
+    (total, matchScore) => total + matchScore.extraIceBonus,
+    0,
+  );
   const subtotal = matchScores.reduce((total, matchScore) => total + matchScore.totalScore, 0);
   const scoreMultiplier = chainComboMultiplier * feverMultiplier;
 
