@@ -17,6 +17,7 @@ export class BackendApi {
    * @returns {Promise<{ success: true, playerName: string, score: number, originalScore: number, gameId?: string }>}
    */
   saveScore(playerName, score, { gameId } = {}) {
+    assertValidPlayerName(playerName);
     const rankingScore = normalizeRankingScore(score);
     assertValidGameId(gameId);
 
@@ -209,6 +210,12 @@ function assertValidGameId(gameId) {
 
   if (typeof gameId !== 'string' || gameId.trim().length === 0) {
     throw new TypeError('gameId must be a non-empty string when provided.');
+  }
+}
+
+function assertValidPlayerName(playerName) {
+  if (typeof playerName !== 'string' || playerName.trim().length === 0) {
+    throw new TypeError('playerName must be a non-empty string.');
   }
 }
 

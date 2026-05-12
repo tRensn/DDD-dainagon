@@ -89,6 +89,24 @@ test('saveScore throws when gameId is an empty string', () => {
   );
 });
 
+test('saveScore throws when playerName is an empty string', () => {
+  const api = new BackendApi({ rankingStore: new MockRankingStore() });
+
+  assert.throws(() => api.saveScore('', 100), /playerName must be a non-empty string/);
+});
+
+test('saveScore throws when playerName is whitespace only', () => {
+  const api = new BackendApi({ rankingStore: new MockRankingStore() });
+
+  assert.throws(() => api.saveScore('   ', 100), /playerName must be a non-empty string/);
+});
+
+test('saveScore throws when playerName is not a string', () => {
+  const api = new BackendApi({ rankingStore: new MockRankingStore() });
+
+  assert.throws(() => api.saveScore(123, 100), /playerName must be a non-empty string/);
+});
+
 test('updateFeverStatus returns false when total clears are below threshold', async () => {
   const api = new BackendApi({ rankingStore: new MockRankingStore() });
 
