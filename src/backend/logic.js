@@ -7,7 +7,11 @@ const DIRECTIONS = [
   { x: -1, y: 1 },
 ];
 
-function findMatchThree(grid) {
+const isFilledCell = (value) => value !== null && value !== undefined && value !== '';
+
+const createKey = (x, y) => `${x},${y}`;
+
+export function findMatchThree(grid) {
   if (!Array.isArray(grid)) {
     return [];
   }
@@ -56,15 +60,3 @@ function collectChain(grid, startX, startY, direction, iceType) {
 
   return chain;
 }
-
-function isFilledCell(value) {
-  return value !== null && value !== undefined && value !== '';
-}
-
-function createKey(x, y) {
-  return `${x},${y}`;
-}
-
-module.exports = {
-  findMatchThree,
-};

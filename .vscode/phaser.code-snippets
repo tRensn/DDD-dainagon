@@ -1,0 +1,46 @@
+{
+  "Phaser Scene Class": {
+    "scope": "javascript",
+    "prefix": "phaser-scene",
+    "body": [
+      "class ${1:GameScene} extends Phaser.Scene {",
+      "  constructor() {",
+      "    super({ key: '${1:GameScene}' });",
+      "  }",
+      "",
+      "  preload() {",
+      "    ${2:// load assets}",
+      "  }",
+      "",
+      "  create() {",
+      "    ${3:// create objects}",
+      "  }",
+      "",
+      "  update() {",
+      "    ${4:// update loop}",
+      "  }",
+      "}"
+    ],
+    "description": "Create a Phaser Scene class skeleton"
+  },
+  "Backend API Import": {
+    "scope": "javascript",
+    "prefix": "ice-backend-api",
+    "body": [
+      "import { backendApi } from '${1:../../src/backend/api.js}';",
+      "",
+      "const ranking = await backendApi.getRanking();"
+    ],
+    "description": "Import the mock backend API"
+  },
+  "Match Three Import": {
+    "scope": "javascript",
+    "prefix": "ice-match-logic",
+    "body": [
+      "import { findMatchThree } from '${1:../../src/backend/logic.js}';",
+      "",
+      "const matches = findMatchThree(${2:grid});"
+    ],
+    "description": "Import the pure match-three logic"
+  }
+}
