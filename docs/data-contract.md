@@ -45,26 +45,88 @@
 
 ## Backend API Mock
 
+### 使用例
+
 ```js
 import { backendApi } from '../src/backend/api.js';
 
-await backendApi.saveScore('player', 1200);
-await backendApi.saveScore('player', 1200, { gameId: 'run-20260512-0001' });
+// スコア保存（冪等性なし）
+const saveResult1 = await backendApi.saveScore('player', 1200);
+
+// スコア保存（gameId で冪等性を確保）
+const saveResult2 = await backendApi.saveScore('player', 1200, { gameId: 'run-20260512-0001' });
+
+// ランキング取得
 const ranking = await backendApi.getRanking();
+
+// フィーバー判定
 const isFever = await backendApi.updateFeverStatus({
   totalClearedCount: 12,
   chainCombo: 2,
 });
 ```
 
-- ゲーム中の合計スコアは負の数を許容する。
-- ランキング保存時も、負のスコアは負のまま保存する。
-- `saveScore()` の `score` は有限な安全整数 (`Number.isSafeInteger`) のみ受け付ける。
-- `saveScore(playerName, score)` は保存用スコアを `score`、元のゲームスコアを `originalScore` として返す。
-- `saveScore(playerName, score, { gameId })` に同じ `gameId` を渡した場合は冪等に扱い、重複保存しない。
-- `updateFeverStatus({ totalClearedCount, chainCombo })` は累計消去数と連鎖回数の両方が閾値以上のときだけ `true` を返す。
-- `SUPABASE_URL` と `SUPABASE_ANON_KEY` が設定されている場合は Supabase に保存する。
-- Supabase 未設定時はモックランキングに保存する。
+### saveScore() 戻り値
+
+```js
+{
+  success: true,
+  playerName: 'player',
+  score: 1200,                    // 正規化後のスコア（保存される値）
+  originalScore: 1200,            // 元のゲームスコア
+  gameId?: 'run-20260512-0001'    // gameId が渡された場合のみ含まれる
+}
+```
+
+**詳細：**
+
+- `success` は常に `true`
+- `score` は有限な安全整数 (`Number.isSafeInteger`) のみ受け付ける
+- ゲーム中の合計スコアは負の数を許容する（ペナルティ扱い）
+- `originalScore` と `score` は通常は同じ値だが、将来の正規化ルール追加に対応
+- `gameId` が指定された場合、同じ `gameId` で再度呼び出すと冪等に動作（同じ結果を返す）
+
+### getRanking() 戻り値
+
+```js
+// モック環境
+[
+  { playerName: 'Alice', score: 5000 },
+  { playerName: 'Bob', score: 4500 },
+  // ... 最大10件
+]
+
+// Supabase 環境
+[
+  { playerName: 'Alice', score: 5000, createdAt: '2026-05-12T10:30:00Z' },
+  { playerName: 'Bob', score: 4500, createdAt: '2026-05-12T10:25:00Z' },
+  // ... 最大10件
+]
+```
+
+**詳細：**
+
+- スコアの高い順にソート
+- 最大10件を返す
+- Supabase 環境では `createdAt` (ISO 8601形式) も含まれる
+- モック環境では `createdAt` は含まれない
+
+### updateFeverStatus() 戻り値
+
+```js
+true; // または false (boolean)
+```
+
+**詳細：**
+
+- `totalClearedCount >= FEVER_TOTAL_CLEARS_THRESHOLD` **かつ** `chainCombo >= FEVER_CHAIN_THRESHOLD` のときだけ `true`
+- 両方の条件を満たさない場合は `false`
+- 設定値は `src/constants.js` の `GAME_PARAMETERS` を参照
+
+### 全般的な仕様
+
+- `SUPABASE_URL` と `SUPABASE_ANON_KEY` が環境変数に設定されている場合は Supabase に保存
+- Supabase 未設定時はモックランキングに保存
 
 ## Clear Score Summary
 

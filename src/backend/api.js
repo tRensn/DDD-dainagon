@@ -9,6 +9,13 @@ export class BackendApi {
     this.savedScoreByGameId = new Map();
   }
 
+  /**
+   * スコアをランキングに保存
+   * @param {string} playerName プレイヤー名
+   * @param {number} score 安全整数のスコア（負の数も許容）
+   * @param {{ gameId?: string }} options gameId で冪等性を確保（オプション）
+   * @returns {Promise<{ success: true, playerName: string, score: number, originalScore: number, gameId?: string }>}
+   */
   saveScore(playerName, score, { gameId } = {}) {
     const rankingScore = normalizeRankingScore(score);
     assertValidGameId(gameId);
@@ -41,12 +48,24 @@ export class BackendApi {
     });
   }
 
+  /**
+   * ランキングを取得（上位10件）
+   * @returns {Promise<Array<{ playerName: string, score: number, createdAt?: string }>>}
+   * - スコアの高い順にソート
+   * - Supabase 環境では createdAt (ISO 8601) も含まれる
+   * - モック環境では createdAt は含まれない
+   */
   getRanking() {
     console.log('[BackendApi] getRanking');
 
     return this.rankingStore.getRanking();
   }
 
+  /**
+   * フィーバー状態を判定
+   * @param {{ totalClearedCount?: number, chainCombo?: number }} options
+   * @returns {Promise<boolean>} 累計消去数と連鎖回数の両方が閾値以上の場合のみ true
+   */
   updateFeverStatus({ totalClearedCount = 0, chainCombo = 1 } = {}) {
     const isFever =
       totalClearedCount >= GAME_PARAMETERS.FEVER_TOTAL_CLEARS_THRESHOLD &&
