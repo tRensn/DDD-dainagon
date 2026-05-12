@@ -79,6 +79,7 @@ const isFever = await backendApi.updateFeverStatus({
 ```
 
 **詳細：**
+
 - `success` は常に `true`
 - `score` は有限な安全整数 (`Number.isSafeInteger`) のみ受け付ける
 - ゲーム中の合計スコアは負の数を許容する（ペナルティ扱い）
@@ -104,6 +105,7 @@ const isFever = await backendApi.updateFeverStatus({
 ```
 
 **詳細：**
+
 - スコアの高い順にソート
 - 最大10件を返す
 - Supabase 環境では `createdAt` (ISO 8601形式) も含まれる
@@ -112,10 +114,11 @@ const isFever = await backendApi.updateFeverStatus({
 ### updateFeverStatus() 戻り値
 
 ```js
-true  // または false (boolean)
+true; // または false (boolean)
 ```
 
 **詳細：**
+
 - `totalClearedCount >= FEVER_TOTAL_CLEARS_THRESHOLD` **かつ** `chainCombo >= FEVER_CHAIN_THRESHOLD` のときだけ `true`
 - 両方の条件を満たさない場合は `false`
 - 設定値は `src/constants.js` の `GAME_PARAMETERS` を参照
