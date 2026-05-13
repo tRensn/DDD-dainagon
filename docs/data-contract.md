@@ -115,13 +115,13 @@ const isFever = await backendApi.updateFeverStatus({
 
 ### Mock / Supabase 差分（フロント実装向け）
 
-| 項目 | Mock | Supabase |
-| --- | --- | --- |
-| 保存先 | メモリ配列（プロセス再起動で消える） | `rankings` テーブル |
-| `getRanking()` の要素 | `{ playerName, score }` | `{ playerName, score, createdAt }` |
-| 並び順 | `score desc` | `score desc, created_at asc` |
-| 取得件数 | 上位10件 | 上位10件 |
-| `saveScore()` の戻り値 | 同一 | 同一 |
+| 項目                   | Mock                                 | Supabase                           |
+| ---------------------- | ------------------------------------ | ---------------------------------- |
+| 保存先                 | メモリ配列（プロセス再起動で消える） | `rankings` テーブル                |
+| `getRanking()` の要素  | `{ playerName, score }`              | `{ playerName, score, createdAt }` |
+| 並び順                 | `score desc`                         | `score desc, created_at asc`       |
+| 取得件数               | 上位10件                             | 上位10件                           |
+| `saveScore()` の戻り値 | 同一                                 | 同一                               |
 
 - フロントはランキング表示モデルを `{ playerName: string, score: number, createdAt?: string }` として扱う。
 - `createdAt` が未定義でも動作する表示実装にしておく。

@@ -251,28 +251,19 @@ test('SupabaseRankingStore throws when Supabase responds with an error', async (
 test('saveScore throws when score is a string', () => {
   const api = new BackendApi({ rankingStore: new MockRankingStore() });
 
-  assert.throws(
-    () => api.saveScore('player', '1200'),
-    /score must be a finite number/,
-  );
+  assert.throws(() => api.saveScore('player', '1200'), /score must be a finite number/);
 });
 
 test('saveScore throws when score is null', () => {
   const api = new BackendApi({ rankingStore: new MockRankingStore() });
 
-  assert.throws(
-    () => api.saveScore('player', null),
-    /score must be a finite number/,
-  );
+  assert.throws(() => api.saveScore('player', null), /score must be a finite number/);
 });
 
 test('saveScore throws when score is NaN', () => {
   const api = new BackendApi({ rankingStore: new MockRankingStore() });
 
-  assert.throws(
-    () => api.saveScore('player', Number.NaN),
-    /score must be a finite number/,
-  );
+  assert.throws(() => api.saveScore('player', Number.NaN), /score must be a finite number/);
 });
 
 // 不足テスト: gameId の型検証
@@ -314,9 +305,7 @@ test('SupabaseRankingStore includes createdAt in getRanking', async () => {
     fetchImpl: async () => ({
       ok: true,
       status: 200,
-      json: async () => [
-        { player_name: 'player', score: 100, created_at: '2026-05-13T12:00:00Z' },
-      ],
+      json: async () => [{ player_name: 'player', score: 100, created_at: '2026-05-13T12:00:00Z' }],
       text: async () => '',
     }),
   });
