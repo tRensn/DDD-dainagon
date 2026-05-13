@@ -81,10 +81,12 @@ const isFever = await backendApi.updateFeverStatus({
 **詳細：**
 
 - `success` は常に `true`
+- `playerName` は空文字・空白のみ・非文字列を受け付けない（`TypeError`）
 - `score` は有限な安全整数 (`Number.isSafeInteger`) のみ受け付ける
 - ゲーム中の合計スコアは負の数を許容する（ペナルティ扱い）
 - `originalScore` と `score` は通常は同じ値だが、将来の正規化ルール追加に対応
 - `gameId` が指定された場合、同じ `gameId` で再度呼び出すと冪等に動作（同じ結果を返す）
+- バリデーション失敗時は `Promise` の reject ではなく、呼び出し時点で `TypeError` / `RangeError` を投げる
 
 ### getRanking() 戻り値
 
@@ -110,6 +112,19 @@ const isFever = await backendApi.updateFeverStatus({
 - 最大10件を返す
 - Supabase 環境では `createdAt` (ISO 8601形式) も含まれる
 - モック環境では `createdAt` は含まれない
+
+### Mock / Supabase 差分（フロント実装向け）
+
+| 項目 | Mock | Supabase |
+| --- | --- | --- |
+| 保存先 | メモリ配列（プロセス再起動で消える） | `rankings` テーブル |
+| `getRanking()` の要素 | `{ playerName, score }` | `{ playerName, score, createdAt }` |
+| 並び順 | `score desc` | `score desc, created_at asc` |
+| 取得件数 | 上位10件 | 上位10件 |
+| `saveScore()` の戻り値 | 同一 | 同一 |
+
+- フロントはランキング表示モデルを `{ playerName: string, score: number, createdAt?: string }` として扱う。
+- `createdAt` が未定義でも動作する表示実装にしておく。
 
 ### updateFeverStatus() 戻り値
 

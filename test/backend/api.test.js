@@ -246,3 +246,110 @@ test('SupabaseRankingStore throws when Supabase responds with an error', async (
 
   await assert.rejects(() => store.saveScore('player', 100), /database is down/);
 });
+
+// 不足テスト: saveScore の score 型検証
+test('saveScore throws when score is a string', () => {
+  const api = new BackendApi({ rankingStore: new MockRankingStore() });
+
+  assert.throws(
+    () => api.saveScore('player', '1200'),
+    /score must be a finite number/,
+  );
+});
+
+test('saveScore throws when score is null', () => {
+  const api = new BackendApi({ rankingStore: new MockRankingStore() });
+
+  assert.throws(
+    () => api.saveScore('player', null),
+    /score must be a finite number/,
+  );
+});
+
+test('saveScore throws when score is NaN', () => {
+  const api = new BackendApi({ rankingStore: new MockRankingStore() });
+
+  assert.throws(
+    () => api.saveScore('player', Number.NaN),
+    /score must be a finite number/,
+  );
+});
+
+// 不足テスト: gameId の型検証
+test('saveScore throws when gameId is a number', () => {
+  const api = new BackendApi({ rankingStore: new MockRankingStore() });
+
+  assert.throws(
+    () => api.saveScore('player', 100, { gameId: 12345 }),
+    /gameId must be a non-empty string/,
+  );
+});
+
+test('saveScore throws when gameId is an object', () => {
+  const api = new BackendApi({ rankingStore: new MockRankingStore() });
+
+  assert.throws(
+    () => api.saveScore('player', 100, { gameId: {} }),
+    /gameId must be a non-empty string/,
+  );
+});
+
+// 不足テスト: Mock と Supabase の返却差分
+test('MockRankingStore does not include createdAt in getRanking', async () => {
+  resetMockRanking();
+
+  const store = new MockRankingStore();
+  await store.saveScore('player', 100);
+
+  const ranking = await store.getRanking();
+
+  assert.deepEqual(ranking, [{ playerName: 'player', score: 100 }]);
+  assert.ok(!('createdAt' in ranking[0]));
+});
+
+test('SupabaseRankingStore includes createdAt in getRanking', async () => {
+  const store = new SupabaseRankingStore({
+    url: 'https://example.supabase.co',
+    anonKey: 'anon-key',
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      json: async () => [
+        { player_name: 'player', score: 100, created_at: '2026-05-13T12:00:00Z' },
+      ],
+      text: async () => '',
+    }),
+  });
+
+  const ranking = await store.getRanking();
+
+  assert.equal(ranking[0].createdAt, '2026-05-13T12:00:00Z');
+});
+
+// 不足テスト: createRankingStore の境界条件
+test('createRankingStore falls back to mock when only SUPABASE_URL is set', () => {
+  const store = createRankingStore({
+    SUPABASE_URL: 'https://example.supabase.co',
+  });
+
+  assert.ok(store instanceof MockRankingStore);
+});
+
+test('createRankingStore falls back to mock when only SUPABASE_ANON_KEY is set', () => {
+  const store = createRankingStore({
+    SUPABASE_ANON_KEY: 'anon-key',
+  });
+
+  assert.ok(store instanceof MockRankingStore);
+});
+
+test('createRankingStore uses custom table name when SUPABASE_RANKING_TABLE is set', () => {
+  const store = createRankingStore({
+    SUPABASE_URL: 'https://example.supabase.co',
+    SUPABASE_ANON_KEY: 'anon-key',
+    SUPABASE_RANKING_TABLE: 'custom_rankings',
+  });
+
+  assert.ok(store instanceof SupabaseRankingStore);
+  assert.equal(store.table, 'custom_rankings');
+});
