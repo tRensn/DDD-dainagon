@@ -1,25 +1,189 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phaser 3 + Node.js</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DDD Dainagon Ice Puzzle</title>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #2d2d2d;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #16212b;
+        color: #f8fafc;
+        display: flex;
+        justify-content: center;
+        align-items: stretch;
+        min-height: 100vh;
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+      }
+
+      main {
+        width: min(1120px, 100%);
+        display: grid;
+        grid-template-columns: minmax(0, 800px) 320px;
+        gap: 16px;
+        padding: 16px;
+        align-items: start;
+      }
+
+      #game-root canvas {
+        width: 100%;
+        max-width: 800px;
+        height: 100vh;
+        max-height: 600px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+
+      .panel {
+        background: #f8fafc;
+        color: #0f172a;
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
+      }
+
+      .panel h1,
+      .panel h2 {
+        margin: 0 0 12px;
+        font-size: 18px;
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+        margin-bottom: 12px;
+        font-size: 14px;
+      }
+
+      input {
+        width: 100%;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 10px 12px;
+        font: inherit;
+      }
+
+      button {
+        border: 0;
+        border-radius: 6px;
+        padding: 10px 12px;
+        background: #087f8c;
+        color: white;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+      }
+
+      button.secondary {
+        background: #475569;
+      }
+
+      button:disabled {
+        cursor: wait;
+        opacity: 0.6;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .status {
+        min-height: 22px;
+        margin: 10px 0 0;
+        color: #475569;
+        font-size: 14px;
+      }
+
+      .status.error {
+        color: #b91c1c;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      ol {
+        padding-left: 24px;
+        margin: 8px 0 0;
+      }
+
+      li {
+        margin-bottom: 6px;
+      }
+
+      @media (max-width: 900px) {
+        main {
+          grid-template-columns: 1fr;
         }
+
+        #game-root canvas {
+          height: auto;
+        }
+      }
     </style>
-</head>
-<body>
-    <!-- Phaserライブラリの読み込み -->
+  </head>
+  <body>
+    <main>
+      <div id="game-root"></div>
+      <aside class="panel">
+        <section id="auth-panel">
+          <h1>プレイヤー登録</h1>
+          <form id="auth-form">
+            <label class="field">
+              プレイヤー名
+              <input id="username-input" autocomplete="username" maxlength="24" required />
+            </label>
+            <label class="field">
+              パスワード
+              <input
+                id="password-input"
+                type="password"
+                autocomplete="current-password"
+                minlength="6"
+                required
+              />
+            </label>
+            <div class="actions">
+              <button id="register-button" type="submit">登録</button>
+              <button class="secondary" id="login-button" type="button">ログイン</button>
+            </div>
+            <p id="auth-status" class="status"></p>
+          </form>
+        </section>
+
+        <section id="player-panel" class="hidden">
+          <h1 id="player-name"></h1>
+          <label class="field">
+            登録スコア
+            <input id="score-input" type="number" step="1" value="0" />
+          </label>
+          <div class="actions">
+            <button id="save-score-button" type="button">ランキング登録</button>
+            <button class="secondary" id="logout-button" type="button">この端末の登録を解除</button>
+          </div>
+          <p id="score-status" class="status"></p>
+        </section>
+
+        <section>
+          <h2>ランキング</h2>
+          <ol id="ranking-list"></ol>
+          <p id="ranking-status" class="status"></p>
+        </section>
+      </aside>
+    </main>
     <script src="/phaser/phaser.min.js"></script>
-    <!-- ゲームロジックの読み込み -->
-    <script src="/js/game.js"></script>
-</body>
+    <script src="/config.js"></script>
+    <script type="module" src="/js/game.js"></script>
+  </body>
 </html>
