@@ -27,7 +27,7 @@ const config = {
     width: 800,
     height: 600,
     backgroundColor: '#000000',
-    scene: [MainScene]
+    scene: [GameScene]
 };
 
 // ゲームインスタンスの生成
