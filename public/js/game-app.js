@@ -30,6 +30,127 @@ class MainScene extends Phaser.Scene {
         fontFamily: 'sans-serif',
       })
       .setOrigin(0.5);
+
+    this.add
+      .text(400, 360, 'スコア登録後にゲーム結果画面を表示します', {
+        fontSize: '18px',
+        color: '#cbd5e1',
+        fontFamily: 'sans-serif',
+      })
+      .setOrigin(0.5);
+  }
+}
+
+class ResultScene extends Phaser.Scene {
+  constructor() {
+    super({ key: 'ResultScene' });
+  }
+
+  init(data) {
+    this.score = Number.isFinite(data?.score) ? data.score : 0;
+  }
+
+  create() {
+    const { width, height } = this.scale;
+    const centerX = width / 2;
+    const halfHeight = height / 2;
+
+    this.add.rectangle(centerX, halfHeight / 2, width, halfHeight, 0x0f172a);
+    this.add.rectangle(centerX, halfHeight + halfHeight / 2, width, halfHeight, 0x1e293b);
+    this.add.line(centerX, halfHeight, 48, 0, width - 48, 0, 0x94a3b8, 0.4);
+
+    this.add
+      .text(centerX, 72, 'GAME RESULT', {
+        fontSize: '24px',
+        color: '#a7f3d0',
+        fontFamily: 'sans-serif',
+        fontStyle: '700',
+      })
+      .setOrigin(0.5);
+
+    this.add
+      .text(centerX, 146, 'スコア', {
+        fontSize: '28px',
+        color: '#f8fafc',
+        fontFamily: 'sans-serif',
+      })
+      .setOrigin(0.5);
+
+    this.add
+      .text(centerX, 218, formatRankingScore(this.score), {
+        fontSize: '72px',
+        color: '#facc15',
+        fontFamily: 'sans-serif',
+        fontStyle: '700',
+      })
+      .setOrigin(0.5);
+
+    this.add
+      .text(centerX, halfHeight + 42, 'ランキング', {
+        fontSize: '28px',
+        color: '#f8fafc',
+        fontFamily: 'sans-serif',
+      })
+      .setOrigin(0.5);
+
+    const rankingStatus = this.add
+      .text(centerX, halfHeight + 112, '読み込み中...', {
+        fontSize: '20px',
+        color: '#cbd5e1',
+        fontFamily: 'sans-serif',
+      })
+      .setOrigin(0.5);
+
+    this.renderRanking(rankingStatus);
+  }
+
+  async renderRanking(rankingStatus) {
+    try {
+      const ranking = await backendApi.getRanking();
+
+      if (ranking.length === 0) {
+        rankingStatus.setText('まだランキングがありません');
+        return;
+      }
+
+      rankingStatus.destroy();
+
+      const rankingTop = this.scale.height / 2 + 92;
+      const rankX = 168;
+      const nameX = 250;
+      const scoreX = 632;
+
+      ranking.slice(0, 5).forEach((entry, index) => {
+        const y = rankingTop + index * 38;
+
+        this.add
+          .text(rankX, y, String(index + 1).padStart(2, '0'), {
+            fontSize: '22px',
+            color: index === 0 ? '#facc15' : '#cbd5e1',
+            fontFamily: 'monospace',
+            fontStyle: '700',
+          })
+          .setOrigin(0.5);
+
+        this.add.text(nameX, y, entry.playerName, {
+          fontSize: '22px',
+          color: '#f8fafc',
+          fontFamily: 'sans-serif',
+        });
+
+        this.add
+          .text(scoreX, y, formatRankingScore(entry.score), {
+            fontSize: '22px',
+            color: '#f8fafc',
+            fontFamily: 'monospace',
+            fontStyle: '700',
+          })
+          .setOrigin(1, 0);
+      });
+    } catch (error) {
+      rankingStatus.setText(toFriendlyError(error));
+      rankingStatus.setColor('#fecaca');
+    }
   }
 }
 
@@ -39,10 +160,10 @@ const gameConfig = {
   width: 800,
   height: 600,
   backgroundColor: '#0f172a',
-  scene: [MainScene],
+  scene: [MainScene, ResultScene],
 };
 
-new Phaser.Game(gameConfig);
+const game = new Phaser.Game(gameConfig);
 
 const elements = {
   authPanel: document.querySelector('#auth-panel'),
@@ -110,7 +231,7 @@ async function authenticate(mode) {
 
 async function saveCurrentScore() {
   if (!player) {
-    setStatus(elements.scoreStatus, 'プレイヤー登録してください。', true);
+    setStatus(elements.scoreStatus, 'プレイヤー登録またはログインしてください。', true);
     return;
   }
 
@@ -126,6 +247,7 @@ async function saveCurrentScore() {
     });
     setStatus(elements.scoreStatus, 'ランキングに登録しました。');
     await refreshRanking();
+    game.scene.start('ResultScene', { score });
   } catch (error) {
     setStatus(elements.scoreStatus, toFriendlyError(error), true);
   } finally {
@@ -141,7 +263,7 @@ async function refreshRanking() {
     elements.rankingList.replaceChildren(
       ...ranking.map((entry) => {
         const item = document.createElement('li');
-        item.textContent = `${entry.playerName}: ${entry.score}`;
+        item.textContent = `${entry.playerName}: ${formatRankingScore(entry.score)}`;
         return item;
       }),
     );
@@ -203,6 +325,15 @@ function setBusy(isBusy) {
   }
 }
 
+function formatRankingScore(score) {
+  if (typeof score === 'number' && Number.isFinite(score)) {
+    return String(score);
+  }
+
+  const normalizedScore = Number(score);
+  return Number.isFinite(normalizedScore) ? String(normalizedScore) : '0';
+}
+
 function setStatus(element, message, isError = false) {
   element.textContent = message;
   element.classList.toggle('error', isError);
@@ -228,7 +359,7 @@ function toFriendlyError(error) {
   }
 
   if (message.includes('over_email_send_rate_limit')) {
-    return 'Supabase Auth のメール確認がオンの可能性があります。Confirm email をオフにして、少し待ってから再登録してください。';
+    return 'Supabase Auth のメール確認がオンの可能性があります。confirm email をオフにして、少し待ってから再登録してください。';
   }
 
   return message;
