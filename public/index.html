@@ -1,26 +1,377 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phaser 3 + Node.js</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DDD Dainagon Ice Puzzle</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap"
+      rel="stylesheet"
+    />
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #2d2d2d;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(135deg, #fce4ec 0%, #e0f7fa 50%, #ede7f6 100%);
+        color: #3d2b4e;
+        display: flex;
+        justify-content: center;
+        align-items: stretch;
+        min-height: 100vh;
+        font-family: 'Nunito', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+
+      main {
+        width: min(1120px, 100%);
+        display: grid;
+        grid-template-columns: minmax(0, 800px) 320px;
+        gap: 16px;
+        padding: 16px;
+        align-items: start;
+      }
+
+      #game-root canvas {
+        width: 100%;
+        max-width: 800px;
+        height: 100vh;
+        max-height: 600px;
+        border: 3px solid rgba(255, 133, 161, 0.45);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(255, 133, 161, 0.2);
+      }
+
+      .panel {
+        background: linear-gradient(160deg, #fff8f0 0%, #f0fff8 100%);
+        color: #3d2b4e;
+        border-radius: 24px;
+        padding: 20px;
+        border: 2px solid rgba(255, 133, 161, 0.35);
+        box-shadow:
+          0 8px 32px rgba(255, 133, 161, 0.18),
+          0 2px 8px rgba(0, 0, 0, 0.06);
+        position: relative;
+      }
+
+      .panel::before {
+        content: '';
+        position: absolute;
+        inset: 7px;
+        border: 1.5px dashed rgba(255, 133, 161, 0.35);
+        border-radius: 18px;
+        pointer-events: none;
+      }
+
+      .panel h1,
+      .panel h2 {
+        margin: 0 0 14px;
+        font-size: 18px;
+        font-weight: 800;
+        color: #ff6b9d;
+      }
+
+      /* ランキングセクションとの区切り線 */
+      #auth-panel ~ section,
+      #player-panel ~ section {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 2px dashed rgba(255, 133, 161, 0.3);
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+        margin-bottom: 12px;
+        font-size: 14px;
+        font-weight: 700;
+        color: #7b5ea7;
+      }
+
+      input {
+        width: 100%;
+        border: 2px solid #ffd6e7;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font: inherit;
+        background: #fff9fb;
+        color: #3d2b4e;
+        transition: border-color 0.2s, background 0.2s;
+      }
+
+      input:focus {
+        outline: none;
+        border-color: #ff85a1;
+        background: #fff5f8;
+      }
+
+      button {
+        border: 0;
+        border-radius: 14px;
+        padding: 12px 18px;
+        color: white;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 800;
+        font-size: 15px;
+        transition: transform 0.1s, box-shadow 0.1s;
+        flex: 1;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-2px);
+      }
+
+      button:active:not(:disabled) {
+        transform: translateY(0);
+      }
+
+      button:disabled {
+        cursor: wait;
+        opacity: 0.6;
+      }
+
+      .btn-login {
+        background: linear-gradient(135deg, #6dd5b5 0%, #3dbf96 100%);
+        box-shadow: 0 4px 14px rgba(61, 191, 150, 0.4);
+        border-bottom: 3px solid #2da07b;
+      }
+
+      .btn-login:hover:not(:disabled) {
+        box-shadow: 0 6px 20px rgba(61, 191, 150, 0.5);
+      }
+
+      .btn-register {
+        background: linear-gradient(135deg, #74c7f5 0%, #4aaee0 100%);
+        box-shadow: 0 4px 14px rgba(74, 174, 224, 0.4);
+        border-bottom: 3px solid #3090c0;
+      }
+
+      .btn-register:hover:not(:disabled) {
+        box-shadow: 0 6px 20px rgba(74, 174, 224, 0.5);
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+      }
+
+      .status {
+        min-height: 22px;
+        margin: 10px 0 0;
+        color: #a78fc0;
+        font-size: 14px;
+      }
+
+      .status.error {
+        color: #e05c7a;
+        font-weight: 700;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      ol {
+        padding-left: 24px;
+        margin: 8px 0 0;
+      }
+
+      li {
+        margin-bottom: 6px;
+        color: #5c4175;
+        font-weight: 700;
+      }
+
+      /* ===== ログインシーン専用スタイル ===== */
+
+      body.scene-login {
+        background: linear-gradient(170deg, #f7e8c5 0%, #edd9a0 50%, #e5cfa0 100%);
+      }
+
+      body.scene-login main {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        align-content: center;
+        min-height: 100vh;
+        padding: 32px 16px;
+        position: relative;
+        z-index: 1;
+      }
+
+      body.scene-login #game-root {
+        display: none;
+      }
+
+      body.scene-login #ranking-section {
+        display: none;
+      }
+
+      body.scene-login aside.panel {
+        width: 100%;
+        max-width: 440px;
+        background: rgba(255, 255, 255, 0.88);
+        backdrop-filter: blur(6px);
+        border: 2px solid rgba(180, 215, 235, 0.7);
+        border-radius: 22px;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.13);
+        position: relative;
+        z-index: 2;
+      }
+
+      body.scene-login aside.panel::before {
+        display: none;
+      }
+
+      body.scene-login .field {
+        color: #4a5a7a;
+        font-size: 15px;
+        font-weight: 800;
+      }
+
+      body.scene-login input {
+        background: #ddf0f7;
+        border: 2px solid #b8dcea;
+        border-radius: 30px;
+        color: #2a3a5a;
+        padding: 12px 18px;
+      }
+
+      body.scene-login input:focus {
+        background: #cce8f5;
+        border-color: #7ec8e8;
+      }
+
+      body.scene-login input::placeholder {
+        color: #88adc8;
+      }
+
+      /* 浮遊アニメーション */
+      @keyframes float-a {
+        0%, 100% { transform: translateY(0) rotate(-3deg); }
+        50%       { transform: translateY(-14px) rotate(3deg); }
+      }
+      @keyframes float-b {
+        0%, 100% { transform: translateY(0) rotate(4deg); }
+        50%       { transform: translateY(-10px) rotate(-4deg); }
+      }
+
+      #login-decor {
+        display: none;
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        overflow: hidden;
+      }
+
+      body.scene-login #login-decor {
+        display: block;
+      }
+
+      #login-decor span {
+        position: absolute;
+        user-select: none;
+        line-height: 1;
+      }
+
+      #login-decor span:nth-child(odd)  { animation: float-a 4s ease-in-out infinite; }
+      #login-decor span:nth-child(even) { animation: float-b 5s ease-in-out infinite; }
+
+      @media (max-width: 900px) {
+        main {
+          grid-template-columns: 1fr;
         }
+
+        #game-root canvas {
+          height: auto;
+        }
+      }
     </style>
-</head>
-<body>
-    <!-- Phaserライブラリの読み込み -->
+  </head>
+  <body>
+    <main>
+      <div id="game-root"></div>
+      <aside class="panel">
+        <section id="auth-panel">
+          <form id="auth-form">
+            <label class="field">
+              プレイヤー名
+              <input id="username-input" placeholder="😊　名前を入力してください" autocomplete="username" maxlength="24" required />
+            </label>
+            <label class="field">
+              パスワード
+              <input
+                id="password-input"
+                type="password"
+                placeholder="🔒　パスワードを入力してください"
+                autocomplete="current-password"
+                minlength="6"
+                required
+              />
+            </label>
+            <div class="actions">
+              <button id="login-button" type="button" class="btn-login">ログイン 🍦</button>
+              <button id="register-button" type="submit" class="btn-register">新規登録 🎁</button>
+            </div>
+            <p id="auth-status" class="status"></p>
+          </form>
+        </section>
+
+        <section id="player-panel" class="hidden">
+          <h1 id="player-name"></h1>
+          <label class="field">
+            登録スコア
+            <input id="score-input" type="number" step="1" value="0" />
+          </label>
+          <div class="actions">
+            <button id="save-score-button" type="button">ランキング登録</button>
+            <button class="secondary" id="logout-button" type="button">ログアウト</button>
+          </div>
+          <p id="score-status" class="status"></p>
+        </section>
+
+        <section id="ranking-section">
+          <h2>🏆 ランキング</h2>
+          <ol id="ranking-list"></ol>
+          <p id="ranking-status" class="status"></p>
+        </section>
+      </aside>
+    </main>
+    <!-- ログイン画面の装飾 -->
+    <div id="login-decor" aria-hidden="true">
+      <!-- 左上 -->
+      <span style="top:4%;left:2%;font-size:2.8rem;animation-delay:0s">💎</span>
+      <span style="top:13%;left:11%;font-size:1.6rem;animation-delay:0.6s">❄️</span>
+      <span style="top:7%;left:20%;font-size:1.3rem;animation-delay:1.2s">❄️</span>
+      <!-- 左中 -->
+      <span style="top:30%;left:3%;font-size:2.2rem;animation-delay:0.3s">🍨</span>
+      <span style="top:44%;left:7%;font-size:1.4rem;animation-delay:1.5s">✨</span>
+      <span style="top:52%;left:2%;font-size:1.6rem;animation-delay:0.9s">❄️</span>
+      <!-- 左下 -->
+      <span style="top:65%;left:4%;font-size:3rem;animation-delay:0.4s">🍦</span>
+      <span style="top:78%;left:2%;font-size:2.8rem;animation-delay:1.1s">💎</span>
+      <span style="top:88%;left:14%;font-size:2rem;animation-delay:0.7s">🍦</span>
+      <!-- 右上 -->
+      <span style="top:3%;right:3%;font-size:2.6rem;animation-delay:0.5s">💎</span>
+      <span style="top:2%;right:13%;font-size:2rem;animation-delay:1.0s">💎</span>
+      <span style="top:11%;right:5%;font-size:1.4rem;animation-delay:0.2s">❄️</span>
+      <!-- 右中 -->
+      <span style="top:24%;right:3%;font-size:2.4rem;animation-delay:1.3s">💎</span>
+      <span style="top:40%;right:6%;font-size:1.5rem;animation-delay:0.8s">✨</span>
+      <span style="top:55%;right:2%;font-size:2.2rem;animation-delay:1.7s">🔮</span>
+      <!-- 右下 -->
+      <span style="top:68%;right:4%;font-size:2.8rem;animation-delay:0.1s">💎</span>
+      <span style="top:80%;right:3%;font-size:2rem;animation-delay:1.4s">🍦</span>
+      <span style="top:91%;right:15%;font-size:1.5rem;animation-delay:0.6s">⭐</span>
+    </div>
+
     <script src="/phaser/phaser.min.js"></script>
-    <!-- ゲームロジックの読み込み -->
-    <script src="/js/GameScene.js"></script>
-    <script src="/js/game.js"></script>
-</body>
+    <script src="/config.js"></script>
+    <script type="module" src="/js/app-init.js"></script>
+  </body>
 </html>

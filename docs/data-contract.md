@@ -125,6 +125,7 @@ const isFever = await backendApi.updateFeverStatus({
 
 - フロントはランキング表示モデルを `{ playerName: string, score: number, createdAt?: string }` として扱う。
 - `createdAt` が未定義でも動作する表示実装にしておく。
+- 同じユーザーが再度スコア登録した場合、ランキング行は追加せず、既存行の `score` を新しい値に更新する。
 
 ### updateFeverStatus() 戻り値
 
@@ -193,3 +194,35 @@ true; // または false (boolean)
 - `extraIceBonus` is the per-type bonus from ice blocks above 3.
 - `score` is after fever/chain multipliers and can be negative for penalty ice.
 - `totalScore` is rounded with `Math.floor()` after applying multipliers.
+
+## Player Registration And Ranking
+
+ブラウザ版は初回起動時にプレイヤー名とパスワードを登録し、以降は `localStorage` に保存したログインセッションを使います。別ブラウザや別端末では同じプレイヤー名とパスワードでログインします。
+
+```js
+const player = await backendApi.registerUser('player', 'password123');
+// or
+const player = await backendApi.signInUser('player', 'password123');
+
+await backendApi.saveScore(player.playerName, 1200, {
+  accessToken: player.accessToken,
+  gameId: 'run-20260518-0001',
+});
+```
+
+### Player Session
+
+```js
+{
+  playerName: 'player',
+  accessToken: '...',
+  refreshToken: '...',
+  expiresAt: 1770000000
+}
+```
+
+- `playerName` は 1-24 文字で、前後の空白を除去して保存する。
+- 同じ `playerName` は再登録できない。
+- `password` は 6 文字以上。
+- Supabase 環境で `saveScore()` する場合は `accessToken` が必須。
+- 同じ `playerName` で再度 `saveScore()` した場合は、古いスコアを残さず新しいスコアで上書きする。
