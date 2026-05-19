@@ -107,6 +107,22 @@
         background: #fff5f8;
       }
 
+      /* Phaser DOM内のinputはグローバルスタイルを無効化 */
+      #game-root input {
+        width: auto !important;
+        border: none !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        transition: none !important;
+      }
+      #game-root input:focus {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+      }
+
       button {
         border: 0;
         border-radius: 14px;
@@ -190,97 +206,31 @@
       /* ===== ログインシーン専用スタイル ===== */
 
       body.scene-login {
-        background: linear-gradient(170deg, #f7e8c5 0%, #edd9a0 50%, #e5cfa0 100%);
+        align-items: center;
+        justify-content: center;
       }
 
       body.scene-login main {
         grid-template-columns: 1fr;
         justify-items: center;
         align-content: center;
-        min-height: 100vh;
-        padding: 32px 16px;
-        position: relative;
-        z-index: 1;
+        padding: 0;
+        width: auto;
       }
 
-      body.scene-login #game-root {
-        display: none;
-      }
-
-      body.scene-login #ranking-section {
-        display: none;
-      }
-
+      /* ログイン時はHTMLサイドパネルを非表示 */
       body.scene-login aside.panel {
-        width: 100%;
-        max-width: 440px;
-        background: rgba(255, 255, 255, 0.88);
-        backdrop-filter: blur(6px);
-        border: 2px solid rgba(180, 215, 235, 0.7);
-        border-radius: 22px;
-        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.13);
-        position: relative;
-        z-index: 2;
-      }
-
-      body.scene-login aside.panel::before {
         display: none;
       }
 
-      body.scene-login .field {
-        color: #4a5a7a;
-        font-size: 15px;
-        font-weight: 800;
+      /* ログイン時はビューポートいっぱいに表示（4:3維持） */
+      body.scene-login #game-root canvas {
+        width: min(100vw, calc(100vh * 4 / 3));
+        height: min(100vh, calc(100vw * 3 / 4));
+        border-radius: 0;
+        border: none;
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3);
       }
-
-      body.scene-login input {
-        background: #ddf0f7;
-        border: 2px solid #b8dcea;
-        border-radius: 30px;
-        color: #2a3a5a;
-        padding: 12px 18px;
-      }
-
-      body.scene-login input:focus {
-        background: #cce8f5;
-        border-color: #7ec8e8;
-      }
-
-      body.scene-login input::placeholder {
-        color: #88adc8;
-      }
-
-      /* 浮遊アニメーション */
-      @keyframes float-a {
-        0%, 100% { transform: translateY(0) rotate(-3deg); }
-        50%       { transform: translateY(-14px) rotate(3deg); }
-      }
-      @keyframes float-b {
-        0%, 100% { transform: translateY(0) rotate(4deg); }
-        50%       { transform: translateY(-10px) rotate(-4deg); }
-      }
-
-      #login-decor {
-        display: none;
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        z-index: 0;
-        overflow: hidden;
-      }
-
-      body.scene-login #login-decor {
-        display: block;
-      }
-
-      #login-decor span {
-        position: absolute;
-        user-select: none;
-        line-height: 1;
-      }
-
-      #login-decor span:nth-child(odd)  { animation: float-a 4s ease-in-out infinite; }
-      #login-decor span:nth-child(even) { animation: float-b 5s ease-in-out infinite; }
 
       @media (max-width: 900px) {
         main {
@@ -342,34 +292,6 @@
         </section>
       </aside>
     </main>
-    <!-- ログイン画面の装飾 -->
-    <div id="login-decor" aria-hidden="true">
-      <!-- 左上 -->
-      <span style="top:4%;left:2%;font-size:2.8rem;animation-delay:0s">💎</span>
-      <span style="top:13%;left:11%;font-size:1.6rem;animation-delay:0.6s">❄️</span>
-      <span style="top:7%;left:20%;font-size:1.3rem;animation-delay:1.2s">❄️</span>
-      <!-- 左中 -->
-      <span style="top:30%;left:3%;font-size:2.2rem;animation-delay:0.3s">🍨</span>
-      <span style="top:44%;left:7%;font-size:1.4rem;animation-delay:1.5s">✨</span>
-      <span style="top:52%;left:2%;font-size:1.6rem;animation-delay:0.9s">❄️</span>
-      <!-- 左下 -->
-      <span style="top:65%;left:4%;font-size:3rem;animation-delay:0.4s">🍦</span>
-      <span style="top:78%;left:2%;font-size:2.8rem;animation-delay:1.1s">💎</span>
-      <span style="top:88%;left:14%;font-size:2rem;animation-delay:0.7s">🍦</span>
-      <!-- 右上 -->
-      <span style="top:3%;right:3%;font-size:2.6rem;animation-delay:0.5s">💎</span>
-      <span style="top:2%;right:13%;font-size:2rem;animation-delay:1.0s">💎</span>
-      <span style="top:11%;right:5%;font-size:1.4rem;animation-delay:0.2s">❄️</span>
-      <!-- 右中 -->
-      <span style="top:24%;right:3%;font-size:2.4rem;animation-delay:1.3s">💎</span>
-      <span style="top:40%;right:6%;font-size:1.5rem;animation-delay:0.8s">✨</span>
-      <span style="top:55%;right:2%;font-size:2.2rem;animation-delay:1.7s">🔮</span>
-      <!-- 右下 -->
-      <span style="top:68%;right:4%;font-size:2.8rem;animation-delay:0.1s">💎</span>
-      <span style="top:80%;right:3%;font-size:2rem;animation-delay:1.4s">🍦</span>
-      <span style="top:91%;right:15%;font-size:1.5rem;animation-delay:0.6s">⭐</span>
-    </div>
-
     <script src="/phaser/phaser.min.js"></script>
     <script src="/config.js"></script>
     <script type="module" src="/js/app-init.js"></script>
