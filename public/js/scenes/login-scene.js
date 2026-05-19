@@ -88,7 +88,8 @@ export class LoginScene extends Phaser.Scene {
   showPlayerPanel() {
     document.querySelector('#auth-panel').classList.add('hidden');
     document.querySelector('#player-panel').classList.remove('hidden');
-    document.querySelector('#player-name').textContent = `${appState.playerSession.playerName} でプレイ中`;
+    document.querySelector('#player-name').textContent =
+      `${appState.playerSession.playerName} でプレイ中`;
   }
 }
 

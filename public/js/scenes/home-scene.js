@@ -28,7 +28,7 @@ export class HomeScene extends Phaser.Scene {
   async create() {
     // プレイヤー情報を表示
     const playerName = appState.playerSession?.playerName ?? 'Player';
-    
+
     this.add
       .text(400, 100, `${playerName} でプレイ中`, {
         fontSize: '28px',
@@ -55,7 +55,7 @@ export class HomeScene extends Phaser.Scene {
   async displayRanking() {
     try {
       const ranking = await backendApi.getRanking();
-      
+
       const y = 450;
       this.add
         .text(400, y, 'ランキング', {
@@ -66,11 +66,16 @@ export class HomeScene extends Phaser.Scene {
         .setOrigin(0.5);
 
       ranking.slice(0, 3).forEach((entry, index) => {
-        this.add.text(400, y + 30 + index * 25, `${index + 1}位: ${entry.playerName} - ${entry.score}`, {
-          fontSize: '16px',
-          color: '#f8fafc',
-          fontFamily: 'monospace',
-        });
+        this.add.text(
+          400,
+          y + 30 + index * 25,
+          `${index + 1}位: ${entry.playerName} - ${entry.score}`,
+          {
+            fontSize: '16px',
+            color: '#f8fafc',
+            fontFamily: 'monospace',
+          },
+        );
       });
     } catch (error) {
       console.error('Failed to load ranking:', error);

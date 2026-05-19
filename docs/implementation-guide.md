@@ -4,12 +4,12 @@
 
 このプロダクトは以下の4つの画面で構成されています：
 
-| 画面 | 担当 | ファイル | 状態 |
-|------|------|---------|------|
-| ログイン・登録 | メイン | `scenes/login-scene.js` | ✅ 実装済み |
-| ホーム | チームメイト1 | `scenes/home-scene.js` | 🔄 テンプレート提供 |
-| ゲーム | チームメイト2 | `scenes/game-scene.js` | 🔄 テンプレート提供 |
-| リザルト | メイン | `scenes/result-scene.js` | ✅ 実装済み |
+| 画面           | 担当          | ファイル                 | 状態                |
+| -------------- | ------------- | ------------------------ | ------------------- |
+| ログイン・登録 | メイン        | `scenes/login-scene.js`  | ✅ 実装済み         |
+| ホーム         | チームメイト1 | `scenes/home-scene.js`   | 🔄 テンプレート提供 |
+| ゲーム         | チームメイト2 | `scenes/game-scene.js`   | 🔄 テンプレート提供 |
+| リザルト       | メイン        | `scenes/result-scene.js` | ✅ 実装済み         |
 
 ## セットアップ
 
@@ -56,7 +56,9 @@ export class HomeScene extends Phaser.Scene {
     const playerName = appState.playerSession?.playerName ?? 'Player';
 
     // ゲーム開始ボタン
-    this.add.text(400, 300, 'ゲーム開始').setInteractive()
+    this.add
+      .text(400, 300, 'ゲーム開始')
+      .setInteractive()
       .on('pointerdown', () => goToGame());
 
     // 遷移時は goToGame() を使用
@@ -77,7 +79,7 @@ import { goToGame, goToHome, goToResult } from '../app-init.js';
 // バックエンド API
 import { BackendApi, createRankingStore } from '/src/backend/api.js';
 const backendApi = new BackendApi({
-  rankingStore: createRankingStore(window.DAINAGON_CONFIG ?? {})
+  rankingStore: createRankingStore(window.DAINAGON_CONFIG ?? {}),
 });
 const ranking = await backendApi.getRanking();
 ```
@@ -96,7 +98,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   finishGame() {
-    const score = 1234;  // ゲーム結果から計算
+    const score = 1234; // ゲーム結果から計算
 
     // リザルト画面へスコアを渡す
     setLastGameResult({
@@ -142,6 +144,7 @@ export class GameScene extends Phaser.Scene {
 ## 問題が起きた場合
 
 ### ビルドエラー
+
 ```bash
 # キャッシュをクリア
 rm -rf node_modules package-lock.json
@@ -150,12 +153,16 @@ npm run dev
 ```
 
 ### Import エラー
+
 ファイルパスの確認：
+
 - 相対パス: `../state/app-state.js`
 - 絶対パス: `/src/backend/api.js`, `/src/constants.js`
 
 ### 画面が遷移しない
+
 `app-init.js` の遷移関数が正しく呼び出されているか確認：
+
 ```js
 // ✅ 正しい
 goToResult(score);

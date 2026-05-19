@@ -40,18 +40,21 @@ src/shared/
 ## コンフリクト回避の原則
 
 ### ✅ 各自が触るファイル
+
 - `LoginScene` の実装 → `scenes/login-scene.js` のみ
 - `HomeScene` の実装 → `scenes/home-scene.js` のみ
 - `GameScene` の実装 → `scenes/game-scene.js` のみ
 - `ResultScene` の実装 → `scenes/result-scene.js` のみ
 
 ### ⚠️ 共有ファイルは事前合意
+
 - `public/js/game-app.js` ← シーン登録、遷移ロジックのみ（メインの人が管理）
 - `src/shared/models.js` ← 全員で参照、型定義は中央管理
 - `src/constants.js` ← 定数追加は PR で相談
 - `public/js/state/app-state.js` ← 状態形状を契約で定義
 
 ### 🔒 アンタッチ推奨
+
 - `src/backend/api.js`
 - `test/**/*`
 
@@ -62,11 +65,11 @@ src/shared/
 ```js
 export const appState = {
   // ユーザー認証
-  playerSession: null,        // {playerName, accessToken, ...}
-  
+  playerSession: null, // {playerName, accessToken, ...}
+
   // 現在のゲーム結果
-  lastGameResult: null,        // {score, gameId, matches, ...}
-  
+  lastGameResult: null, // {score, gameId, matches, ...}
+
   // UI 状態
   isLoading: false,
 };
@@ -161,7 +164,7 @@ goToHome();
 if (!appState.playerSession) {
   appState.playerSession = {
     playerName: 'test-player',
-    accessToken: 'test-token'
+    accessToken: 'test-token',
   };
 }
 
