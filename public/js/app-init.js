@@ -37,6 +37,7 @@ const game = new Phaser.Game(gameConfig);
  * ホーム画面へ遷移
  */
 export function goToHome() {
+  document.body.classList.remove('scene-login');
   game.scene.stop('LoginScene');
   game.scene.stop('GameScene');
   game.scene.stop('ResultScene');
@@ -64,6 +65,7 @@ export function goToResult(score) {
  * ログイン画面へ戻す（ログアウト時）
  */
 export function goToLogin() {
+  document.body.classList.add('scene-login');
   game.scene.stop('HomeScene');
   game.scene.stop('GameScene');
   game.scene.stop('ResultScene');
