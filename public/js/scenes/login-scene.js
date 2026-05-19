@@ -13,19 +13,22 @@ export class LoginScene extends Phaser.Scene {
   }
 
   create() {
+    document.body.classList.add('scene-login');
+
     this.add
-      .text(400, 240, 'DDD Dainagon', {
+      .text(400, 240, '🍦 DDD Dainagon', {
         fontSize: '42px',
-        color: '#f8fafc',
-        fontFamily: 'sans-serif',
+        color: '#ff6b9d',
+        fontFamily: 'Nunito, sans-serif',
+        fontStyle: 'bold',
       })
       .setOrigin(0.5);
 
     this.add
       .text(400, 306, 'プレイヤー登録後、スコアをランキングに保存できます', {
         fontSize: '20px',
-        color: '#a7f3d0',
-        fontFamily: 'sans-serif',
+        color: '#7de3c2',
+        fontFamily: 'Nunito, sans-serif',
       })
       .setOrigin(0.5);
 
