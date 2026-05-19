@@ -105,6 +105,10 @@ export class ResultScene extends Phaser.Scene {
     const logoutButton = document.querySelector('#logout-button');
     const scoreInput = document.querySelector('#score-input');
 
+    if (scoreInput) {
+      scoreInput.value = this.score;
+    }
+
     if (saveButton) {
       saveButton.addEventListener('click', async () => {
         await this.saveCurrentScore(scoreInput);
