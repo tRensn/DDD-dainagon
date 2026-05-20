@@ -1,6 +1,6 @@
 import { BackendApi, createRankingStore } from '/src/backend/api.js';
 import { appState } from '../state/app-state.js';
-import { goToGame, goToHome, goToLogin } from '../app-init.js';
+import { goToGame, goToHome } from '../app-init.js';
 
 const configEnv = window.DAINAGON_CONFIG ?? {};
 const backendApi = new BackendApi({
@@ -51,6 +51,15 @@ export class ResultScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    // スコア登録ステータス（キャンバス内）
+    this.saveStatusText = this.add
+      .text(centerX, 285, '', {
+        fontSize: '16px',
+        color: '#a7f3d0',
+        fontFamily: 'sans-serif',
+      })
+      .setOrigin(0.5);
+
     this.add
       .text(centerX, halfHeight + 42, 'ランキング', {
         fontSize: '28px',
@@ -68,8 +77,7 @@ export class ResultScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.createNavigationButtons(centerX);
-    this.renderRanking(rankingStatus);
-    this.setupUI();
+    this.autoSaveAndRenderRanking(rankingStatus);
   }
 
   createNavigationButtons(centerX) {
@@ -82,9 +90,7 @@ export class ResultScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => {
-        goToGame();
-      });
+      .on('pointerdown', () => goToGame());
 
     this.add
       .text(centerX + 120, 560, 'ホーム', {
@@ -95,68 +101,25 @@ export class ResultScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => {
-        goToHome();
-      });
+      .on('pointerdown', () => goToHome());
   }
 
-  setupUI() {
-    const saveButton = document.querySelector('#save-score-button');
-    const logoutButton = document.querySelector('#logout-button');
-    const scoreInput = document.querySelector('#score-input');
-
-    if (scoreInput) {
-      scoreInput.value = this.score;
+  async autoSaveAndRenderRanking(rankingStatus) {
+    if (appState.playerSession) {
+      this.saveStatusText.setText('スコアを登録しています...');
+      try {
+        await backendApi.saveScore(appState.playerSession.playerName, this.score, {
+          accessToken: appState.playerSession.accessToken,
+          gameId: `game-${Date.now()}`,
+        });
+        this.saveStatusText.setText('ランキングに登録しました！');
+      } catch (error) {
+        this.saveStatusText.setText(toFriendlyError(error));
+        this.saveStatusText.setColor('#fecaca');
+      }
     }
 
-    if (saveButton) {
-      saveButton.addEventListener('click', async () => {
-        await this.saveCurrentScore(scoreInput);
-      });
-    }
-
-    if (logoutButton) {
-      logoutButton.addEventListener('click', () => {
-        this.logout();
-      });
-    }
-  }
-
-  async saveCurrentScore(scoreInput) {
-    if (!appState.playerSession) {
-      setStatus(
-        document.querySelector('#score-status'),
-        'プレイヤー登録またはログインしてください。',
-        true,
-      );
-      return;
-    }
-
-    const score = Number(scoreInput.value);
-
-    setBusy(true);
-    setStatus(document.querySelector('#score-status'), 'スコアを登録しています...');
-
-    try {
-      await backendApi.saveScore(appState.playerSession.playerName, score, {
-        accessToken: appState.playerSession.accessToken,
-        gameId: `manual-${Date.now()}`,
-      });
-      setStatus(document.querySelector('#score-status'), 'ランキングに登録しました。');
-      await this.refreshRanking();
-    } catch (error) {
-      setStatus(document.querySelector('#score-status'), toFriendlyError(error), true);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  logout() {
-    localStorage.removeItem('dainagon-player');
-    appState.playerSession = null;
-    document.querySelector('#auth-panel').classList.remove('hidden');
-    document.querySelector('#player-panel').classList.add('hidden');
-    goToLogin();
+    await this.renderRanking(rankingStatus);
   }
 
   async renderRanking(rankingStatus) {
@@ -207,48 +170,14 @@ export class ResultScene extends Phaser.Scene {
       rankingStatus.setColor('#fecaca');
     }
   }
-
-  async refreshRanking() {
-    setStatus(document.querySelector('#ranking-status'), '読み込み中...');
-
-    try {
-      const ranking = await backendApi.getRanking();
-      document.querySelector('#ranking-list').replaceChildren(
-        ...ranking.map((entry) => {
-          const item = document.createElement('li');
-          item.textContent = `${entry.playerName}: ${formatRankingScore(entry.score)}`;
-          return item;
-        }),
-      );
-      setStatus(
-        document.querySelector('#ranking-status'),
-        ranking.length === 0 ? 'まだ登録がありません。' : '',
-      );
-    } catch (error) {
-      setStatus(document.querySelector('#ranking-status'), toFriendlyError(error), true);
-    }
-  }
 }
 
 // ===== Utility Functions =====
-
-function setBusy(isBusy) {
-  for (const button of document.querySelectorAll('button')) {
-    button.disabled = isBusy;
-  }
-}
-
-function setStatus(element, message, isError = false) {
-  if (!element) return;
-  element.textContent = message;
-  element.classList.toggle('error', isError);
-}
 
 function formatRankingScore(score) {
   if (typeof score === 'number' && Number.isFinite(score)) {
     return String(score);
   }
-
   const normalizedScore = Number(score);
   return Number.isFinite(normalizedScore) ? String(normalizedScore) : '0';
 }
@@ -261,20 +190,16 @@ function toFriendlyError(error) {
     message.includes('duplicate key') ||
     message.includes('23505')
   ) {
-    return 'このプレイヤー名はすでに登録されています。別の名前を使ってください。';
+    return 'このプレイヤー名はすでに登録されています。';
   }
-
   if (message.includes('Invalid login credentials')) {
     return 'プレイヤー名またはパスワードが違います。';
   }
-
   if (message.includes('email confirmation')) {
     return 'Supabase Auth のメール確認をオフにしてください。';
   }
-
   if (message.includes('over_email_send_rate_limit')) {
-    return 'Supabase Auth のメール確認がオンの可能性があります。confirm email をオフにして、少し待ってから再登録してください。';
+    return '少し待ってから再登録してください。';
   }
-
   return message;
 }

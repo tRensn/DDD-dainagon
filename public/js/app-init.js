@@ -11,12 +11,11 @@ import { GameScene } from './scenes/game-scene.js';
 import { appState, setMockSession } from './state/app-state.js';
 
 const sceneEntries = [
-  ['LoginScene', LoginScene],
   ['HomeScene', HomeScene],
+  ['LoginScene', LoginScene],
   ['GameScene', GameScene],
   ['ResultScene', ResultScene],
 ];
-const initialSceneKey = appState.playerSession?.accessToken ? 'HomeScene' : 'LoginScene';
 
 // ===== Phaser ゲーム設定 =====
 
@@ -25,9 +24,9 @@ const gameConfig = {
   parent: 'game-root',
   width: 800,
   height: 600,
-  backgroundColor: '#0f172a',
+  transparent: true,
   dom: { createContainer: true },
-  scene: buildSceneOrder(initialSceneKey),
+  scene: sceneEntries.map(([, sceneClass]) => sceneClass),
 };
 
 const game = new Phaser.Game(gameConfig);
@@ -35,10 +34,10 @@ const game = new Phaser.Game(gameConfig);
 // ===== グローバル画面遷移関数 =====
 
 /**
- * ホーム画面へ遷移
+ * ホーム画面へ遷移（ログイン後・ログアウト後共通）
+ * サイドパネルのプレイヤー情報表示も更新する
  */
 export function goToHome() {
-  document.body.classList.remove('scene-login');
   game.scene.stop('LoginScene');
   game.scene.stop('GameScene');
   game.scene.stop('ResultScene');
@@ -46,10 +45,19 @@ export function goToHome() {
 }
 
 /**
+ * ログインモーダルをホーム画面の上に表示
+ */
+export function showLoginModal() {
+  game.scene.launch('LoginScene');
+  game.scene.bringToTop('LoginScene');
+}
+
+/**
  * ゲーム画面へ遷移
  */
 export function goToGame() {
   game.scene.stop('HomeScene');
+  game.scene.stop('ResultScene');
   game.scene.start('GameScene');
 }
 
@@ -62,31 +70,7 @@ export function goToResult(score) {
   game.scene.start('ResultScene', { score });
 }
 
-/**
- * ログイン画面へ戻す（ログアウト時）
- */
-export function goToLogin() {
-  document.body.classList.add('scene-login');
-  game.scene.stop('HomeScene');
-  game.scene.stop('GameScene');
-  game.scene.stop('ResultScene');
-  game.scene.start('LoginScene');
-}
-
-function buildSceneOrder(startSceneKey) {
-  const startScene = sceneEntries.find(([sceneKey]) => sceneKey === startSceneKey);
-  const otherScenes = sceneEntries.filter(([sceneKey]) => sceneKey !== startSceneKey);
-
-  return [startScene, ...otherScenes].map(([, sceneClass]) => sceneClass);
-}
-
 // ===== デバッグ用初期化 =====
-
-// 開発時: ログイン画面をスキップする場合
-if (window.location.hash === '#home') {
-  setMockSession('dev-player');
-  setTimeout(() => goToHome(), 100);
-}
 
 if (window.location.hash === '#result') {
   setMockSession('dev-player');
