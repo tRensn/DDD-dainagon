@@ -17,13 +17,29 @@ export class LoginScene extends Phaser.Scene {
   }
 
   create() {
-    document.body.classList.add('scene-login');
+    // 半透明の薄暗いオーバーレイ（キャンバス全面）→ ホーム画面が透けて見える
+    // setInteractive() でクリックを吸収しホーム画面への貫通を防ぐ
+    this.add.rectangle(400, 300, 800, 600, 0x000000, 0.55).setInteractive();
 
-    // 背景画像をキャンバス全体に引き伸ばして表示
-    this.add.image(400, 300, 'loginBg').setDisplaySize(800, 600);
+    // 背景画像を縮小して中央に表示
+    this.add.image(400, 300, 'loginBg').setDisplaySize(480, 360);
 
-    // フォームオーバーレイを Phaser DOM として配置
+    // フォームオーバーレイを Phaser DOM として配置（サイズ・位置は変更なし）
     this.formDom = this.add.dom(400, 300, this._createFormElement());
+
+    // 閉じるボタン（画像右上）
+    this.add
+      .text(636, 122, '✕', {
+        fontSize: '20px',
+        color: '#ffffff',
+        fontFamily: 'sans-serif',
+        fontStyle: '700',
+        backgroundColor: '#475569',
+        padding: { x: 8, y: 5 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this.scene.stop());
 
     this._setupEvents();
 
@@ -90,17 +106,17 @@ export class LoginScene extends Phaser.Scene {
         }
       </style>
 
-      <input id="loginUsername" class="login-input" style="top: 37.5%;"
+      <input id="loginUsername" class="login-input" style="top: 32%;"
         type="text" maxlength="24" autocomplete="username" />
 
-      <input id="loginPassword" class="login-input" style="top: 54.0%;"
+      <input id="loginPassword" class="login-input" style="top: 48.5%;"
         type="password" autocomplete="current-password" minlength="6" />
 
       <button id="loginBtn" class="login-btn"
-        style="top: 66%; left: 29%; width: 20%;">ログイン</button>
+        style="top: 60.5%; left: 29%; width: 20%;">ログイン</button>
 
       <button id="registerBtn" class="login-btn"
-        style="top: 66%; left: 51%; width: 20%;">新規登録</button>
+        style="top: 60.5%; left: 51%; width: 20%;">新規登録</button>
 
       <p id="loginStatus"></p>
     `;
