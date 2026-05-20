@@ -65,9 +65,9 @@ export function goToGame() {
  * リザルト画面へ遷移
  * @param {number} score ゲーム結果のスコア
  */
-export function goToResult(score) {
+export function goToResult(score, stats = {}) {
   game.scene.stop('GameScene');
-  game.scene.start('ResultScene', { score });
+  game.scene.start('ResultScene', { score, ...stats });
 }
 
 // ===== デバッグ用初期化 =====
