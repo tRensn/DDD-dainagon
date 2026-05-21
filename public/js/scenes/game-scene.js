@@ -207,6 +207,8 @@ export class GameScene extends Phaser.Scene {
 
         // ゲーム状態
         this.score = 0;
+        this.maxChain = 0;
+        this.erasedCounts = [0, 0, 0, 0];
         this.gameActive = true;
         this.gameStarted = false;
         this.canRetry = false;
@@ -912,8 +914,10 @@ export class GameScene extends Phaser.Scene {
 
                 removeTargets.forEach((target) => {
                     const [row, col] = target.split(',').map(Number);
+                    this.erasedCounts[this.grid[row][col].type]++;
                     this.grid[row][col] = null;
                 });
+                this.maxChain = Math.max(this.maxChain, chainCount);
 
                 removed = true;
                 chainCount++;
@@ -1643,7 +1647,7 @@ export class GameScene extends Phaser.Scene {
         });
 
         this.time.delayedCall(3000, () => {
-            goToResult(this.score);
+            goToResult(this.score, { maxChain: this.maxChain, erasedCounts: this.erasedCounts });
         });
     }
 
