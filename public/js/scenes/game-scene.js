@@ -7,6 +7,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     preload() {
+        this.load.image('cone-image', 'js/state/game screen image/image.png');
         // 画像やアセットの読み込みはここで行います
     }
 
@@ -57,14 +58,15 @@ export class GameScene extends Phaser.Scene {
     }
 
     createIceCreamFrame() {
-        const frameX = 60;
-        const frameY = 45;
-        const frameWidth = 330;
-        const frameHeight = 430;
+        const frameX = this.FRAME_X;
+        const frameY = this.FRAME_Y;
+        const frameWidth = this.FRAME_WIDTH;
+        const frameHeight = this.FRAME_HEIGHT;
         const cornerRadius = 10;
         const coneTopY = frameY + frameHeight;
-        const coneBottomY = coneTopY + 115;
         const coneCenterX = frameX + frameWidth / 2;
+        const sideLineBottomY = this.scale.height;
+        const coneOverlapY = 30;
 
         this.iceCreamFrame = {
             x: frameX,
@@ -78,14 +80,15 @@ export class GameScene extends Phaser.Scene {
 
         graphics.fillStyle(0xFFFDF7, 0.92);
         graphics.fillRoundedRect(frameX, frameY, frameWidth, frameHeight, cornerRadius);
+        graphics.fillRect(frameX, coneTopY, frameWidth, this.scale.height - coneTopY);
 
         graphics.lineStyle(13, 0xF6A7C8, 0.18);
         graphics.beginPath();
         graphics.moveTo(frameX + cornerRadius, frameY);
         graphics.lineTo(frameX + frameWidth - cornerRadius, frameY);
         graphics.arc(frameX + frameWidth - cornerRadius, frameY + cornerRadius, cornerRadius, -Math.PI / 2, 0);
-        graphics.lineTo(frameX + frameWidth, coneTopY);
-        graphics.moveTo(frameX, coneTopY);
+        graphics.lineTo(frameX + frameWidth, sideLineBottomY);
+        graphics.moveTo(frameX, sideLineBottomY);
         graphics.lineTo(frameX, frameY + cornerRadius);
         graphics.arc(frameX + cornerRadius, frameY + cornerRadius, cornerRadius, Math.PI, -Math.PI / 2);
         graphics.strokePath();
@@ -95,8 +98,8 @@ export class GameScene extends Phaser.Scene {
         graphics.moveTo(frameX + cornerRadius, frameY);
         graphics.lineTo(frameX + frameWidth - cornerRadius, frameY);
         graphics.arc(frameX + frameWidth - cornerRadius, frameY + cornerRadius, cornerRadius, -Math.PI / 2, 0);
-        graphics.lineTo(frameX + frameWidth, coneTopY);
-        graphics.moveTo(frameX, coneTopY);
+        graphics.lineTo(frameX + frameWidth, sideLineBottomY);
+        graphics.moveTo(frameX, sideLineBottomY);
         graphics.lineTo(frameX, frameY + cornerRadius);
         graphics.arc(frameX + cornerRadius, frameY + cornerRadius, cornerRadius, Math.PI, -Math.PI / 2);
         graphics.strokePath();
@@ -106,8 +109,8 @@ export class GameScene extends Phaser.Scene {
         graphics.moveTo(frameX + cornerRadius, frameY);
         graphics.lineTo(frameX + frameWidth - cornerRadius, frameY);
         graphics.arc(frameX + frameWidth - cornerRadius, frameY + cornerRadius, cornerRadius, -Math.PI / 2, 0);
-        graphics.lineTo(frameX + frameWidth, coneTopY);
-        graphics.moveTo(frameX, coneTopY);
+        graphics.lineTo(frameX + frameWidth, sideLineBottomY);
+        graphics.moveTo(frameX, sideLineBottomY);
         graphics.lineTo(frameX, frameY + cornerRadius);
         graphics.arc(frameX + cornerRadius, frameY + cornerRadius, cornerRadius, Math.PI, -Math.PI / 2);
         graphics.strokePath();
@@ -117,8 +120,8 @@ export class GameScene extends Phaser.Scene {
         graphics.moveTo(frameX + cornerRadius + 2, frameY + 1);
         graphics.lineTo(frameX + frameWidth - cornerRadius - 2, frameY + 1);
         graphics.arc(frameX + frameWidth - cornerRadius, frameY + cornerRadius, cornerRadius - 2, -Math.PI / 2, 0);
-        graphics.lineTo(frameX + frameWidth - 1, coneTopY - 2);
-        graphics.moveTo(frameX + 1, coneTopY - 2);
+        graphics.lineTo(frameX + frameWidth - 1, sideLineBottomY - 2);
+        graphics.moveTo(frameX + 1, sideLineBottomY - 2);
         graphics.lineTo(frameX + 1, frameY + cornerRadius + 2);
         graphics.arc(frameX + cornerRadius, frameY + cornerRadius, cornerRadius - 2, Math.PI, -Math.PI / 2);
         graphics.strokePath();
@@ -135,28 +138,72 @@ export class GameScene extends Phaser.Scene {
         graphics.lineTo(frameX + frameWidth - 18, this.gameOverLineY);
         graphics.strokePath();
 
-        graphics.fillStyle(0xE9B36A, 1);
-        graphics.lineStyle(4, 0xC9823D, 1);
-        graphics.fillTriangle(frameX, coneTopY, frameX + frameWidth, coneTopY, coneCenterX, coneBottomY);
-        graphics.strokeTriangle(frameX, coneTopY, frameX + frameWidth, coneTopY, coneCenterX, coneBottomY);
+        this.createTransparentConeTexture();
+        const coneImageTopY = coneTopY - coneOverlapY;
+        const coneImage = this.add.image(coneCenterX, coneImageTopY, 'cone-transparent');
+        coneImage.setOrigin(0.5, 0);
+        coneImage.setX(coneCenterX);
+        coneImage.setDisplaySize(frameWidth - 10, this.scale.height - coneImageTopY);
+        coneImage.setDepth(2);
+    }
 
-        const getConeLeftX = (y) => frameX + ((coneCenterX - frameX) * (y - coneTopY)) / (coneBottomY - coneTopY);
-        const getConeRightX = (y) => frameX + frameWidth - ((frameX + frameWidth - coneCenterX) * (y - coneTopY)) / (coneBottomY - coneTopY);
-
-        graphics.lineStyle(2, 0xD8964A, 0.75);
-        for (let y = coneTopY + 14; y < coneBottomY - 18; y += 22) {
-            graphics.beginPath();
-            graphics.moveTo(getConeLeftX(y) + 10, y);
-            graphics.lineTo(getConeRightX(y + 18) - 10, y + 18);
-            graphics.strokePath();
+    createTransparentConeTexture() {
+        if (this.textures.exists('cone-transparent')) {
+            this.textures.remove('cone-transparent');
         }
 
-        for (let y = coneTopY + 14; y < coneBottomY - 18; y += 22) {
-            graphics.beginPath();
-            graphics.moveTo(getConeRightX(y) - 10, y);
-            graphics.lineTo(getConeLeftX(y + 18) + 10, y + 18);
-            graphics.strokePath();
+        const sourceImage = this.textures.get('cone-image').getSourceImage();
+        const sourceCanvas = document.createElement('canvas');
+        sourceCanvas.width = sourceImage.width;
+        sourceCanvas.height = sourceImage.height;
+
+        const sourceContext = sourceCanvas.getContext('2d');
+        sourceContext.drawImage(sourceImage, 0, 0);
+
+        const imageData = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+        const pixels = imageData.data;
+        let minX = sourceCanvas.width;
+        let minY = sourceCanvas.height;
+        let maxX = 0;
+        let maxY = 0;
+
+        for (let index = 0; index < pixels.length; index += 4) {
+            const red = pixels[index];
+            const green = pixels[index + 1];
+            const blue = pixels[index + 2];
+            const pixelIndex = index / 4;
+            const x = pixelIndex % sourceCanvas.width;
+            const y = Math.floor(pixelIndex / sourceCanvas.width);
+            const isWhiteBackground = red > 238 && green > 238 && blue > 238 && Math.max(red, green, blue) - Math.min(red, green, blue) < 18;
+            const isStrongGreenBackground = green > 95 && green > red * 1.45 && green > blue * 1.35;
+            const isGreenEdge = green > 105 && green > red + 18 && green > blue + 22 && red < 190;
+            const isDecorativeCorner = x > sourceCanvas.width * 0.75 && y > sourceCanvas.height * 0.68;
+
+            if (isWhiteBackground || isStrongGreenBackground || isGreenEdge || isDecorativeCorner) {
+                pixels[index + 3] = 0;
+                continue;
+            }
+
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
         }
+
+        sourceContext.putImageData(imageData, 0, 0);
+
+        const padding = 0;
+        const cropX = Math.max(0, minX - padding);
+        const cropY = Math.max(0, minY - padding);
+        const cropWidth = Math.min(sourceCanvas.width - cropX, maxX - minX + padding * 2);
+        const bottomCrop = 150;
+        const cropHeight = Math.min(sourceCanvas.height - cropY, Math.max(1, maxY - minY + padding * 2 - bottomCrop));
+        const textureWidth = cropWidth;
+        const coneTexture = this.textures.createCanvas('cone-transparent', textureWidth, cropHeight);
+        const coneContext = coneTexture.getContext();
+
+        coneContext.drawImage(sourceCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+        coneTexture.refresh();
     }
 
     createNextIceCreamFrame() {
@@ -191,11 +238,18 @@ export class GameScene extends Phaser.Scene {
 
     initGame() {
         // ゲーム定数
-        this.COLS = 5;
+        this.COLS = 6;
         this.ROWS = 7;
-        this.CELL_SIZE = 52;
-        this.GRID_START_X = 95;
-        this.GRID_START_Y = 106;
+        this.CELL_SIZE = 49;
+        this.ICE_SCALE = 0.78;
+        this.MELTED_ICE_SCALE_X = 0.84;
+        this.MELTED_ICE_SCALE_Y = 0.52;
+        this.FRAME_WIDTH = 330;
+        this.FRAME_HEIGHT = 430;
+        this.FRAME_X = Math.round((this.scale.width - this.FRAME_WIDTH) / 2);
+        this.FRAME_Y = 45;
+        this.GRID_START_X = this.FRAME_X + (this.FRAME_WIDTH - this.COLS * this.CELL_SIZE) / 2;
+        this.GRID_START_Y = this.FRAME_Y + this.FRAME_HEIGHT - this.ROWS * this.CELL_SIZE - 23;
 
         // アイスクリームの種類
         this.ICE_CREAM_TYPES = [
@@ -215,6 +269,7 @@ export class GameScene extends Phaser.Scene {
         this.nextIceCreamType = Phaser.Math.Between(0, this.ICE_CREAM_TYPES.length - 1);
         this.grid = this.createEmptyGrid();
         this.dropSpeed = 58;
+        this.horizontalPassThroughMs = 260;
         this.meltTimeMs = 20000;
         this.feverGaugeScore = 0;
         this.feverDurationMs = 10000;
@@ -310,18 +365,18 @@ export class GameScene extends Phaser.Scene {
     createUI() {
         const panel = this.add.graphics();
         panel.fillStyle(0xFFFDF7, 0.78);
-        panel.fillRoundedRect(540, 82, 220, 72, 12);
+        panel.fillRoundedRect(14, 272, 206, 66, 12);
         panel.lineStyle(3, 0xF6A7C8, 0.8);
-        panel.strokeRoundedRect(540, 82, 220, 72, 12);
-
+        panel.strokeRoundedRect(14, 272, 206, 66, 12);
         // スコア表示（左側）
         this.scoreText = this.add.text(560, 100, `スコア: ${this.score}`, {
-            fontSize: '24px',
+            fontSize: '26px',
             fill: '#7F6BAE',
             fontStyle: 'bold',
             stroke: '#FFFFFF',
             strokeThickness: 5
         });
+        this.scoreText.setPosition(24, 292);
         this.scoreText.setShadow(2, 2, '#F6A7C8', 2, true, true);
 
     }
@@ -329,9 +384,9 @@ export class GameScene extends Phaser.Scene {
     createFeverGauge() {
         const panel = this.add.graphics();
         panel.fillStyle(0xFFFDF7, 0.78);
-        panel.fillRoundedRect(540, 247, 220, 98, 12);
+        panel.fillRoundedRect(580, 247, 205, 98, 12);
         panel.lineStyle(3, 0xA9DDF7, 0.85);
-        panel.strokeRoundedRect(540, 247, 220, 98, 12);
+        panel.strokeRoundedRect(580, 247, 205, 98, 12);
 
         const label = this.add.text(560, 265, 'フィーバーゲージ', {
             fontSize: '20px',
@@ -340,12 +395,13 @@ export class GameScene extends Phaser.Scene {
             stroke: '#FFFFFF',
             strokeThickness: 4
         });
+        label.setPosition(586, 265);
         label.setShadow(2, 2, '#A9DDF7', 2, true, true);
 
         this.feverGauge = {
-            x: 560,
+            x: 586,
             y: 305,
-            width: 180,
+            width: 190,
             height: 22,
             graphics: this.add.graphics()
         };
@@ -626,19 +682,11 @@ export class GameScene extends Phaser.Scene {
     setupInput() {
         // 左右操作
         this.input.keyboard.on('keydown-LEFT', () => {
-            if (!this.isPaused && this.gameStarted && this.fallingIceCream && this.fallingIceCream.col > 0 && this.getLandingRow(this.fallingIceCream.col - 1) !== -1) {
-                this.fallingIceCream.col--;
-                this.updateFallingSpritePosition();
-                this.playMoveSe();
-            }
+            this.moveFallingIceCream(-1);
         });
 
         this.input.keyboard.on('keydown-RIGHT', () => {
-            if (!this.isPaused && this.gameStarted && this.fallingIceCream && this.fallingIceCream.col < this.COLS - 1 && this.getLandingRow(this.fallingIceCream.col + 1) !== -1) {
-                this.fallingIceCream.col++;
-                this.updateFallingSpritePosition();
-                this.playMoveSe();
-            }
+            this.moveFallingIceCream(1);
         });
 
         // スペースキーで即座に落下
@@ -659,6 +707,36 @@ export class GameScene extends Phaser.Scene {
                 this.togglePause();
             }
         });
+    }
+
+    moveFallingIceCream(direction) {
+        if (this.isPaused || !this.gameStarted || !this.fallingIceCream) {
+            return;
+        }
+
+        const nextCol = this.findHorizontalMoveTargetCol(direction);
+        if (nextCol === this.fallingIceCream.col) return;
+
+        this.fallingIceCream.col = nextCol;
+        this.fallingIceCream.passThroughUntil = this.time.now + this.horizontalPassThroughMs;
+        this.updateFallingSpritePosition();
+        this.playMoveSe();
+    }
+
+    findHorizontalMoveTargetCol(direction) {
+        for (let col = this.fallingIceCream.col + direction; col >= 0 && col < this.COLS; col += direction) {
+            const landingRow = this.getLandingRow(col);
+
+            if (landingRow === -1) {
+                continue;
+            }
+
+            if (this.fallingIceCream.y < this.getCellBottomY(landingRow)) {
+                return col;
+            }
+        }
+
+        return this.fallingIceCream.col;
     }
 
     togglePause() {
@@ -777,7 +855,8 @@ export class GameScene extends Phaser.Scene {
         this.fallingIceCream = {
             type: typeIndex,
             col: startCol,
-            y: this.GRID_START_Y - this.CELL_SIZE * 0.35
+            y: this.GRID_START_Y - this.CELL_SIZE * 0.35,
+            passThroughUntil: 0
         };
         this.nextIceCreamType = Phaser.Math.Between(0, this.ICE_CREAM_TYPES.length - 1);
 
@@ -788,6 +867,7 @@ export class GameScene extends Phaser.Scene {
 
         const flavor = this.ICE_CREAM_TYPES[typeIndex];
         this.fallingSprite = this.add.image(this.getCellCenterX(startCol), this.fallingIceCream.y, flavor.texture);
+        this.fallingSprite.setScale(this.ICE_SCALE);
         this.fallingSprite.setDepth(5);
         this.updateNextPreview();
     }
@@ -812,7 +892,8 @@ export class GameScene extends Phaser.Scene {
         this.fallingIceCream.y += this.dropSpeed * (delta / 1000);
 
         const landingRow = this.getLandingRow(this.fallingIceCream.col);
-        if (landingRow === -1 || this.fallingIceCream.y >= this.getCellBottomY(landingRow)) {
+        const isPassingThrough = time < (this.fallingIceCream.passThroughUntil || 0);
+        if (!isPassingThrough && (landingRow === -1 || this.fallingIceCream.y >= this.getCellCenterY(landingRow))) {
             this.fixIceCreamToGrid();
             return;
         }
@@ -957,14 +1038,20 @@ export class GameScene extends Phaser.Scene {
         this.feverRedrawTimer = 0;
         this.lastPausedTimerUpdateTime = this.time.now;
         this.lastFeverPauseUpdateTime = this.time.now;
-        this.freezeMeltedIceCreams();
+        const hasFrozenIceCreams = this.freezeMeltedIceCreams();
         this.playFeverSe();
         this.showFeverText();
         this.showFeverScreenEffect();
         this.updateFeverGauge();
+
+        if (hasFrozenIceCreams) {
+            this.startMatchResolution();
+        }
     }
 
     freezeMeltedIceCreams() {
+        let hasFrozenIceCreams = false;
+
         for (let row = 0; row < this.ROWS; row++) {
             for (let col = 0; col < this.COLS; col++) {
                 const cell = this.grid[row][col];
@@ -974,9 +1061,12 @@ export class GameScene extends Phaser.Scene {
                 cell.melted = false;
                 cell.placedAt = this.time.now;
                 cell.feverFrozenUntil = this.feverActiveUntil;
+                hasFrozenIceCreams = true;
                 this.createSnowflakeEffect(this.getCellCenterX(col), this.getCellCenterY(row));
             }
         }
+
+        return hasFrozenIceCreams;
     }
 
     calculateMatchScore(typeIndex, count) {
@@ -1213,6 +1303,8 @@ export class GameScene extends Phaser.Scene {
         if (time >= this.feverActiveUntil) {
             if (!this.feverEndHandled) {
                 this.meltExpiredFeverFrozenIceCreams(time);
+                this.feverGaugeScore = 0;
+                this.updateFeverGauge();
                 this.feverEndHandled = true;
             }
             this.clearFeverScreenEffect();
@@ -1308,8 +1400,7 @@ export class GameScene extends Phaser.Scene {
 
         overlay.setDepth(2);
         frameGlow.setDepth(12);
-        frameGlow.lineStyle(8, 0xA9DDF7, 0.55);
-        frameGlow.strokeRoundedRect(this.iceCreamFrame.x - 5, this.iceCreamFrame.y - 5, this.iceCreamFrame.width + 10, this.iceCreamFrame.height + 10, 14);
+        this.drawFeverFrameGlow(frameGlow);
 
         this.tweens.add({
             targets: overlay,
@@ -1353,6 +1444,36 @@ export class GameScene extends Phaser.Scene {
         this.feverScreenEffect = { overlay, frameGlow, snowflakes };
     }
 
+    drawFeverFrameGlow(frameGlow) {
+        const frameX = this.iceCreamFrame.x;
+        const frameY = this.iceCreamFrame.y;
+        const frameWidth = this.iceCreamFrame.width;
+        const sideLineBottomY = this.scale.height;
+        const cornerRadius = 14;
+
+        frameGlow.lineStyle(12, 0xE8F8FF, 0.26);
+        frameGlow.beginPath();
+        frameGlow.moveTo(frameX + cornerRadius, frameY - 5);
+        frameGlow.lineTo(frameX + frameWidth - cornerRadius, frameY - 5);
+        frameGlow.arc(frameX + frameWidth - cornerRadius, frameY + cornerRadius - 5, cornerRadius, -Math.PI / 2, 0);
+        frameGlow.lineTo(frameX + frameWidth + 5, sideLineBottomY);
+        frameGlow.moveTo(frameX - 5, sideLineBottomY);
+        frameGlow.lineTo(frameX - 5, frameY + cornerRadius - 5);
+        frameGlow.arc(frameX + cornerRadius, frameY + cornerRadius - 5, cornerRadius, Math.PI, -Math.PI / 2);
+        frameGlow.strokePath();
+
+        frameGlow.lineStyle(6, 0xA9DDF7, 0.78);
+        frameGlow.beginPath();
+        frameGlow.moveTo(frameX + cornerRadius, frameY);
+        frameGlow.lineTo(frameX + frameWidth - cornerRadius, frameY);
+        frameGlow.arc(frameX + frameWidth - cornerRadius, frameY + cornerRadius, cornerRadius, -Math.PI / 2, 0);
+        frameGlow.lineTo(frameX + frameWidth, sideLineBottomY);
+        frameGlow.moveTo(frameX, sideLineBottomY);
+        frameGlow.lineTo(frameX, frameY + cornerRadius);
+        frameGlow.arc(frameX + cornerRadius, frameY + cornerRadius, cornerRadius, Math.PI, -Math.PI / 2);
+        frameGlow.strokePath();
+    }
+
     clearFeverScreenEffect() {
         if (!this.feverScreenEffect) return;
 
@@ -1376,7 +1497,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     isIceCreamOverGameOverLine(row) {
-        const placedIceScale = 0.88;
+        const placedIceScale = this.ICE_SCALE;
         const textureHeight = this.textures.get(this.ICE_CREAM_TYPES[0].texture).getSourceImage().height;
         const iceTop = this.getCellCenterY(row) - (textureHeight * placedIceScale) / 2;
         const iceBottom = this.getCellCenterY(row) + (textureHeight * placedIceScale) / 2;
@@ -1438,12 +1559,12 @@ export class GameScene extends Phaser.Scene {
                     const typeIndex = cell.type;
                     const flavor = this.ICE_CREAM_TYPES[typeIndex];
                     const sprite = this.add.image(this.getCellCenterX(col), this.getCellCenterY(row), flavor.texture);
-                    sprite.setScale(0.88);
+                    sprite.setScale(this.ICE_SCALE);
                     sprite.setDepth(4);
                     if (cell.melted) {
                         sprite.setAlpha(0.42);
                         sprite.setTint(0xCFE8FF);
-                        sprite.setScale(0.95, 0.56);
+                        sprite.setScale(this.MELTED_ICE_SCALE_X, this.MELTED_ICE_SCALE_Y);
                         sprite.setY(this.getCellCenterY(row) + 13);
                         this.createMeltedIceCreamOverlay(this.getCellCenterX(col), this.getCellCenterY(row) + 24);
                     } else if (this.isFeverFrozenCell(cell, this.time.now)) {
