@@ -14,7 +14,7 @@ const SCOOP_THRESHOLDS = [5, 20, 50, 100];
 const LEFT_CX = 185;
 
 // 右パネル設定
-const PANEL = { x: 368, y: 15, w: 414, h: 468, r: 12 };
+const PANEL = { x: 368, y: 40, w: 414, h: 468, r: 12 };
 const PANEL_CX = PANEL.x + PANEL.w / 2;
 
 export class ResultScene extends Phaser.Scene {
@@ -133,24 +133,24 @@ export class ResultScene extends Phaser.Scene {
     }).setOrigin(0.5, 0);
 
     // コーン（フェードイン）
-    const cone = this.add.image(LEFT_CX, 490, 'result-cone')
-      .setDisplaySize(210, 125)
+    const cone = this.add.image(LEFT_CX, 560, 'result-cone')
+      .setDisplaySize(560, 280)
       .setAlpha(0);
     this.tweens.add({ targets: cone, alpha: 1, duration: 300, ease: 'Power2' });
 
     // スクープ定義（後に描くほど手前に来る）
     const scoops = [
-      { key: 'result-mint',       y: 402 },
-      { key: 'result-cookie',     y: 308 },
-      { key: 'result-strawberry', y: 218 },
-      { key: 'result-azuki',      y: 132 },
+      { key: 'result-mint',       y: 437 },
+      { key: 'result-cookie',     y: 343 },
+      { key: 'result-strawberry', y: 253 },
+      { key: 'result-azuki',      y: 167 },
     ];
 
     // スクープを上から落下 + バウンスアニメーション
     for (let i = 0; i < scoopCount; i++) {
       const finalY  = scoops[i].y;
       const scoop   = this.add.image(LEFT_CX, finalY - 120, scoops[i].key)
-        .setDisplaySize(200, 140)
+        .setDisplaySize(370, 210)
         .setAlpha(0);
 
       this.tweens.add({
@@ -163,14 +163,6 @@ export class ResultScene extends Phaser.Scene {
       });
     }
 
-    // スコア表示（左下）
-    this.add.text(LEFT_CX, 548, 'スコア', {
-      fontSize: '13px', color: '#8B5E3C', fontFamily: 'sans-serif',
-    }).setOrigin(0.5, 0);
-
-    this.add.text(LEFT_CX, 566, formatScore(this.score), {
-      fontSize: '30px', color: '#C05A00', fontFamily: 'monospace', fontStyle: '700',
-    }).setOrigin(0.5, 0);
   }
 
   _getScoopCount() {
