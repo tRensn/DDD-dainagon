@@ -26,6 +26,7 @@ export class GameScene extends Phaser.Scene {
         this.createUI();
         this.createFeverGauge();
         this.createPauseHint();
+        this.createMobileControls();
 
         // BGM再生
         this.createPastelBgm();
@@ -473,6 +474,62 @@ export class GameScene extends Phaser.Scene {
         }).setDepth(15);
     }
 
+    createMobileControls() {
+        const buttons = [
+            { x: 612, y: 520, radius: 30, label: '<', fontSize: '30px', action: () => this.moveFallingIceCream(-1) },
+            { x: 684, y: 520, radius: 30, label: '>', fontSize: '30px', action: () => this.moveFallingIceCream(1) },
+            {
+                x: 748,
+                y: 520,
+                radius: 34,
+                label: 'DROP',
+                fontSize: '16px',
+                action: () => {
+                    if (!this.isPaused && this.gameStarted && this.fallingIceCream) {
+                        this.hardDropIceCream();
+                    }
+                }
+            }
+        ];
+
+        this.mobileControlButtons = buttons.map((button) => {
+            const glow = this.add.circle(button.x, button.y, button.radius + 6, 0xFFE68A, 0.16);
+            glow.setDepth(15);
+
+            const base = this.add.circle(button.x, button.y, button.radius, 0xFFFDF7, 0.9);
+            base.setStrokeStyle(4, 0xF6A7C8, 0.95);
+            base.setDepth(16);
+            base.setInteractive({ useHandCursor: true });
+
+            const label = this.add.text(button.x, button.y, button.label, {
+                fontSize: button.fontSize,
+                fill: '#7F6BAE',
+                fontStyle: 'bold',
+                stroke: '#FFFFFF',
+                strokeThickness: 4
+            }).setOrigin(0.5).setDepth(17);
+
+            base.on('pointerdown', (pointer, localX, localY, event) => {
+                if (event) event.stopPropagation();
+                base.setScale(0.92);
+                label.setScale(0.92);
+                button.action();
+            });
+
+            base.on('pointerup', () => {
+                base.setScale(1);
+                label.setScale(1);
+            });
+
+            base.on('pointerout', () => {
+                base.setScale(1);
+                label.setScale(1);
+            });
+
+            return { base, glow, label };
+        });
+    }
+
     updateFeverGauge() {
         if (!this.feverGauge) return;
 
@@ -558,7 +615,9 @@ export class GameScene extends Phaser.Scene {
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
             if (this.bgmLoop) {
                 this.bgmLoop.remove(false);
+                this.bgmLoop = null;
             }
+            this.bgmStarted = false;
         });
     }
 
@@ -772,6 +831,8 @@ export class GameScene extends Phaser.Scene {
             window.removeEventListener('keydown', this.browserKeyBlocker, { capture: true });
             window.removeEventListener('keyup', this.browserKeyBlocker, { capture: true });
             document.removeEventListener('keydown', this.browserKeyBlocker, { capture: true });
+            this.browserKeyBlocker = null;
+            this.inputSetupDone = false;
         });
 
         this.input.keyboard.on('keydown-LEFT', () => {
@@ -800,7 +861,14 @@ export class GameScene extends Phaser.Scene {
         });
 
         this.input.keyboard.on('keydown-ENTER', () => {
+            if (this.isPaused && this.gameActive && this.gameStarted && !this.canRetry) {
+                this.prepareSceneRestart();
+                this.scene.restart();
+                return;
+            }
+
             if (this.canRetry) {
+                this.prepareSceneRestart();
                 this.scene.restart();
             }
         });
@@ -837,11 +905,12 @@ export class GameScene extends Phaser.Scene {
         const nextCol = this.findHorizontalMoveTargetCol(direction);
         if (nextCol === this.fallingIceCream.col) return;
 
-        this.fallingIceCream.col = nextCol;
-        this.fallingIceCream.passThroughUntil = this.time.now + this.horizontalPassThroughMs;
-        this.updateFallingSpritePosition();
-        this.playMoveSe();
-    }
+            this.fallingIceCream.col = nextCol;
+            this.fallingIceCream.passThroughUntil = this.time.now + this.horizontalPassThroughMs;
+            this.updateFallingSpritePosition();
+            this.updateDropMarker();
+            this.playMoveSe();
+        }
 
     findHorizontalMoveTargetCol(direction) {
         for (let col = this.fallingIceCream.col + direction; col >= 0 && col < this.COLS; col += direction) {
@@ -857,6 +926,23 @@ export class GameScene extends Phaser.Scene {
         }
 
         return this.fallingIceCream.col;
+    }
+
+    prepareSceneRestart() {
+        if (this.bgmLoop) {
+            this.bgmLoop.remove(false);
+            this.bgmLoop = null;
+        }
+        this.bgmStarted = false;
+
+        if (this.browserKeyBlocker) {
+            window.removeEventListener('keydown', this.browserKeyBlocker, { capture: true });
+            window.removeEventListener('keyup', this.browserKeyBlocker, { capture: true });
+            document.removeEventListener('keydown', this.browserKeyBlocker, { capture: true });
+            this.browserKeyBlocker = null;
+        }
+
+        this.inputSetupDone = false;
     }
 
     togglePause() {
@@ -880,12 +966,12 @@ export class GameScene extends Phaser.Scene {
         const panel = this.add.graphics();
 
         panel.fillStyle(0xFFFDF7, 0.88);
-        panel.fillRoundedRect(x - 95, y - 32, 190, 64, 14);
+        panel.fillRoundedRect(x - 115, y - 42, 230, 92, 14);
         panel.lineStyle(4, 0xA9DDF7, 0.9);
-        panel.strokeRoundedRect(x - 95, y - 32, 190, 64, 14);
+        panel.strokeRoundedRect(x - 115, y - 42, 230, 92, 14);
         panel.setDepth(13);
 
-        const text = this.add.text(x, y, 'PAUSE', {
+        const text = this.add.text(x, y - 12, 'PAUSE', {
             fontSize: '34px',
             fill: '#7F6BAE',
             fontStyle: 'bold',
@@ -893,7 +979,15 @@ export class GameScene extends Phaser.Scene {
             strokeThickness: 6
         }).setOrigin(0.5).setDepth(14).setShadow(2, 2, '#A9DDF7', 2, true, true);
 
-        this.pauseOverlay = { panel, text };
+        const retryText = this.add.text(x, y + 28, 'Enterでリトライ', {
+            fontSize: '19px',
+            fill: '#E85D75',
+            fontStyle: 'bold',
+            stroke: '#FFFFFF',
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(14).setShadow(2, 2, '#F6A7C8', 2, true, true);
+
+        this.pauseOverlay = { panel, text, retryText };
     }
 
     hidePauseOverlay() {
@@ -901,6 +995,7 @@ export class GameScene extends Phaser.Scene {
 
         this.pauseOverlay.panel.destroy();
         this.pauseOverlay.text.destroy();
+        this.pauseOverlay.retryText.destroy();
         this.pauseOverlay = null;
     }
 
@@ -1048,6 +1143,8 @@ export class GameScene extends Phaser.Scene {
         );
         this.fallingSprite.setScale(this.ICE_SCALE);
         this.fallingSprite.setDepth(5);
+        this.createDropMarker();
+        this.updateDropMarker();
         this.updateNextPreview();
     }
 
@@ -1089,6 +1186,7 @@ export class GameScene extends Phaser.Scene {
         }
 
         this.updateFallingSpritePosition();
+        this.updateDropMarker();
     }
 
     fixIceCreamToGrid() {
@@ -1105,6 +1203,8 @@ export class GameScene extends Phaser.Scene {
             this.endGame();
             return;
         }
+
+        this.destroyDropMarker();
 
         this.grid[row][col] = {
             type: this.fallingIceCream.type,
@@ -2010,34 +2110,6 @@ export class GameScene extends Phaser.Scene {
             ease: 'Sine.easeInOut'
         });
 
-        const feverLabelGlow = this.add.text(this.iceCreamFrame.x + this.iceCreamFrame.width / 2, this.iceCreamFrame.y + 22, 'FEVER', {
-            fontSize: '44px',
-            fill: '#FFF8B8',
-            fontStyle: 'bold',
-            stroke: '#FFFFFF',
-            strokeThickness: 14
-        }).setOrigin(0.5).setDepth(12).setAlpha(0.82);
-        effects.push(feverLabelGlow);
-
-        const feverLabel = this.add.text(this.iceCreamFrame.x + this.iceCreamFrame.width / 2, this.iceCreamFrame.y + 22, 'FEVER', {
-            fontSize: '34px',
-            fill: '#FFF45C',
-            fontStyle: 'bold',
-            stroke: '#FFFDF7',
-            strokeThickness: 7
-        }).setOrigin(0.5).setDepth(13).setAlpha(1);
-        effects.push(feverLabel);
-
-        this.tweens.add({
-            targets: [feverLabel, feverLabelGlow],
-            scale: 1.1,
-            alpha: 0.9,
-            duration: 520,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
-        });
-
         const lightColors = [0xFFE68A, 0xF8AFC9, 0xA9E8D1, 0xA9DDF7];
         const lightPositions = [];
         const leftX = this.iceCreamFrame.x + 10;
@@ -2199,6 +2271,81 @@ export class GameScene extends Phaser.Scene {
         }
 
         return false;
+    }
+
+    getDropMarkerColor(typeIndex) {
+        const colors = [
+            { fill: 0xC78AA0, stroke: 0x7B2339 },
+            { fill: 0xF6F0DE, stroke: 0x5B4B42 },
+            { fill: 0xF8AFC9, stroke: 0xD9577F },
+            { fill: 0xA9E8D1, stroke: 0x4F9F8B }
+        ];
+        return colors[typeIndex] ?? { fill: 0xFFFDF7, stroke: 0x7F6BAE };
+    }
+
+    createDropMarker() {
+        this.destroyDropMarker();
+
+        if (!this.fallingIceCream || this.useTsumPhysics) return;
+
+        const colors = this.getDropMarkerColor(this.fallingIceCream.type);
+        const shadow = this.add.circle(0, 0, 15, 0x2B2440, 0.22);
+        shadow.setDepth(5);
+
+        const glow = this.add.circle(0, 0, 18, colors.fill, 0.28);
+        glow.setDepth(5);
+
+        const marker = this.add.circle(0, 0, 10, colors.fill, 1);
+        marker.setStrokeStyle(5, colors.stroke, 1);
+        marker.setDepth(6);
+
+        const shine = this.add.circle(0, 0, 4, 0xFFFFFF, 0.9);
+        shine.setDepth(7);
+
+        this.dropMarker = { marker, glow, shadow, shine };
+
+        this.tweens.add({
+            targets: [marker, glow, shadow, shine],
+            scale: 1.18,
+            duration: 420,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+    }
+
+    updateDropMarker() {
+        if (!this.dropMarker || !this.fallingIceCream || this.useTsumPhysics) return;
+
+        const landingRow = this.getLandingRow(this.fallingIceCream.col);
+        if (landingRow === -1) {
+            this.dropMarker.marker.setVisible(false);
+            this.dropMarker.glow.setVisible(false);
+            this.dropMarker.shadow.setVisible(false);
+            this.dropMarker.shine.setVisible(false);
+            return;
+        }
+
+        const x = this.getCellCenterX(this.fallingIceCream.col);
+        const y = this.getCellCenterY(landingRow);
+        this.dropMarker.marker.setVisible(true);
+        this.dropMarker.glow.setVisible(true);
+        this.dropMarker.shadow.setVisible(true);
+        this.dropMarker.shine.setVisible(true);
+        this.dropMarker.marker.setPosition(x, y);
+        this.dropMarker.glow.setPosition(x, y);
+        this.dropMarker.shadow.setPosition(x, y + 2);
+        this.dropMarker.shine.setPosition(x - 3, y - 3);
+    }
+
+    destroyDropMarker() {
+        if (!this.dropMarker) return;
+
+        this.dropMarker.marker.destroy();
+        this.dropMarker.glow.destroy();
+        this.dropMarker.shadow.destroy();
+        this.dropMarker.shine.destroy();
+        this.dropMarker = null;
     }
 
     updateFallingSpritePosition() {
@@ -2402,6 +2549,40 @@ export class GameScene extends Phaser.Scene {
     }
 
     showFeverText() {
+        const gaugeX = this.feverGauge
+            ? this.feverGauge.x + this.feverGauge.width / 2
+            : this.iceCreamFrame.x + this.iceCreamFrame.width / 2;
+        const gaugeY = this.feverGauge ? this.feverGauge.y - 20 : this.iceCreamFrame.y + 120;
+        const feverStartBubble = this.add.graphics();
+
+        feverStartBubble.fillStyle(0xFFFDF7, 0.92);
+        feverStartBubble.fillRoundedRect(gaugeX - 76, gaugeY - 22, 152, 42, 14);
+        feverStartBubble.lineStyle(4, 0xFFE68A, 0.98);
+        feverStartBubble.strokeRoundedRect(gaugeX - 76, gaugeY - 22, 152, 42, 14);
+        feverStartBubble.setDepth(18);
+
+        const feverStartText = this.add.text(gaugeX, gaugeY, 'FEVER', {
+            fontSize: '28px',
+            fill: '#FFF45C',
+            fontStyle: 'bold',
+            stroke: '#7F6BAE',
+            strokeThickness: 6
+        }).setOrigin(0.5).setDepth(19);
+
+        this.tweens.add({
+            targets: [feverStartText, feverStartBubble],
+            y: gaugeY - 16,
+            alpha: 0,
+            scale: 1.16,
+            duration: 1000,
+            ease: 'Cubic.easeOut',
+            onComplete: () => {
+                feverStartText.destroy();
+                feverStartBubble.destroy();
+            }
+        });
+        return;
+
         const bubble = this.add.graphics();
         const x = this.iceCreamFrame.x + this.iceCreamFrame.width / 2;
         const y = this.iceCreamFrame.y + 120;
@@ -2444,6 +2625,7 @@ export class GameScene extends Phaser.Scene {
             this.fallingSprite.destroy();
             this.fallingSprite = null;
         }
+        this.destroyDropMarker();
 
         const x = this.iceCreamFrame.x + this.iceCreamFrame.width / 2;
         const y = this.iceCreamFrame.y + 185;
