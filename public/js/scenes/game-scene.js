@@ -18,6 +18,7 @@ export class GameScene extends Phaser.Scene {
         this.initGame();
 
         // ゲーム枠表示
+        this.initGame();
         this.createIceCreamFrame();
         this.createNextIceCreamFrame();
 
@@ -33,6 +34,7 @@ export class GameScene extends Phaser.Scene {
         this.setupInput();
 
         // 開始カウントダウン
+        this.setupInput();
         this.startCountdown();
     }
 
@@ -139,11 +141,13 @@ export class GameScene extends Phaser.Scene {
         graphics.strokePath();
 
         this.createTransparentConeTexture();
+        const coneDisplayWidth = frameWidth - 10;
         const coneImageTopY = coneTopY - coneOverlapY;
+        const coneDisplayHeight = this.scale.height - coneImageTopY;
         const coneImage = this.add.image(coneCenterX, coneImageTopY, 'cone-transparent');
         coneImage.setOrigin(0.5, 0);
         coneImage.setX(coneCenterX);
-        coneImage.setDisplaySize(frameWidth - 10, this.scale.height - coneImageTopY);
+        coneImage.setDisplaySize(coneDisplayWidth, coneDisplayHeight);
         coneImage.setDepth(2);
     }
 
@@ -211,6 +215,7 @@ export class GameScene extends Phaser.Scene {
         const previewX = this.iceCreamFrame.x + this.iceCreamFrame.width + 10;
         const previewY = this.iceCreamFrame.y + 18;
         const graphics = this.add.graphics();
+        graphics.setDepth(14);
 
         this.nextPreviewFrame = {
             x: previewX,
@@ -239,17 +244,25 @@ export class GameScene extends Phaser.Scene {
     initGame() {
         // ゲーム定数
         this.COLS = 6;
-        this.ROWS = 7;
+        this.VISIBLE_ROWS = 7;
+        this.HIDDEN_ROWS = 1;
+        this.ROWS = this.VISIBLE_ROWS + this.HIDDEN_ROWS;
         this.CELL_SIZE = 49;
         this.ICE_SCALE = 0.78;
+        this.useTsumPhysics = false;
+        this.TSUM_RADIUS = 27;
+        this.TSUM_GRAVITY = 900;
+        this.TSUM_BOUNCE = 0.006;
+        this.TSUM_FRICTION = 0.88;
         this.MELTED_ICE_SCALE_X = 0.84;
         this.MELTED_ICE_SCALE_Y = 0.52;
         this.FRAME_WIDTH = 330;
         this.FRAME_HEIGHT = 430;
         this.FRAME_X = Math.round((this.scale.width - this.FRAME_WIDTH) / 2);
-        this.FRAME_Y = 45;
+        this.FRAME_Y = 96;
+        this.VISIBLE_GRID_START_Y = this.FRAME_Y + this.FRAME_HEIGHT - this.VISIBLE_ROWS * this.CELL_SIZE - 23;
         this.GRID_START_X = this.FRAME_X + (this.FRAME_WIDTH - this.COLS * this.CELL_SIZE) / 2;
-        this.GRID_START_Y = this.FRAME_Y + this.FRAME_HEIGHT - this.ROWS * this.CELL_SIZE - 23;
+        this.GRID_START_Y = this.VISIBLE_GRID_START_Y - this.HIDDEN_ROWS * this.CELL_SIZE;
 
         // アイスクリームの種類
         this.ICE_CREAM_TYPES = [
@@ -263,6 +276,9 @@ export class GameScene extends Phaser.Scene {
         this.score = 0;
         this.maxChain = 0;
         this.erasedCounts = [0, 0, 0, 0];
+        this.elapsedPlayMs = 0;
+        this.lastElapsedTimerUpdateTime = 0;
+        this.lastDisplayedElapsedSecond = -1;
         this.gameActive = true;
         this.gameStarted = false;
         this.canRetry = false;
@@ -281,6 +297,7 @@ export class GameScene extends Phaser.Scene {
         this.lastPausedTimerUpdateTime = 0;
         this.lastFeverPauseUpdateTime = 0;
         this.placedSprites = [];
+        this.tsumPieces = [];
 
         this.createIceCreamTextures();
     }
@@ -365,11 +382,45 @@ export class GameScene extends Phaser.Scene {
     }
 
     createUI() {
+        const timePanel = this.add.graphics();
+        timePanel.setDepth(14);
+        timePanel.fillStyle(0xFFFDF7, 0.82);
+        timePanel.fillRoundedRect(14, 188, 206, 70, 12);
+        timePanel.lineStyle(3, 0xA9DDF7, 0.9);
+        timePanel.strokeRoundedRect(14, 188, 206, 70, 12);
+
+        this.timeLabelText = this.add.text(28, 200, 'タイム', {
+            fontSize: '18px',
+            fill: '#5BA7D1',
+            fontStyle: 'bold',
+            stroke: '#FFFFFF',
+            strokeThickness: 4
+        });
+        this.timeLabelText.setShadow(2, 2, '#DDEBFF', 2, true, true);
+        this.timeLabelText.setDepth(15);
+
+        this.elapsedTimeText = this.add.text(28, 221, '00:00', {
+            fontSize: '30px',
+            fill: '#7F6BAE',
+            fontStyle: 'bold',
+            stroke: '#FFFFFF',
+            strokeThickness: 5
+        });
+        this.elapsedTimeText.setShadow(2, 2, '#A9DDF7', 2, true, true);
+        this.elapsedTimeText.setDepth(15);
+
         const panel = this.add.graphics();
-        panel.fillStyle(0xFFFDF7, 0.78);
-        panel.fillRoundedRect(14, 272, 206, 66, 12);
-        panel.lineStyle(3, 0xF6A7C8, 0.8);
-        panel.strokeRoundedRect(14, 272, 206, 66, 12);
+        panel.setDepth(14);
+        const scorePanelX = this.iceCreamFrame.x;
+        const scorePanelY = 24;
+        const scorePanelWidth = this.iceCreamFrame.width;
+        const scorePanelHeight = 58;
+        panel.fillStyle(0xFFFDF7, 0.84);
+        panel.fillRoundedRect(scorePanelX, scorePanelY, scorePanelWidth, scorePanelHeight, 14);
+        panel.lineStyle(4, 0xF6A7C8, 0.92);
+        panel.strokeRoundedRect(scorePanelX, scorePanelY, scorePanelWidth, scorePanelHeight, 14);
+        panel.lineStyle(2, 0xFFF7FB, 0.95);
+        panel.strokeRoundedRect(scorePanelX + 4, scorePanelY + 4, scorePanelWidth - 8, scorePanelHeight - 8, 11);
         // スコア表示（左側）
         this.scoreText = this.add.text(560, 100, `スコア: ${this.score}`, {
             fontSize: '26px',
@@ -378,35 +429,36 @@ export class GameScene extends Phaser.Scene {
             stroke: '#FFFFFF',
             strokeThickness: 5
         });
-        this.scoreText.setPosition(24, 292);
+        this.scoreText.setPosition(scorePanelX + 22, scorePanelY + scorePanelHeight / 2);
+        this.scoreText.setOrigin(0, 0.5);
         this.scoreText.setShadow(2, 2, '#F6A7C8', 2, true, true);
+        this.scoreText.setDepth(15);
 
     }
 
     createFeverGauge() {
+        const panelX = this.iceCreamFrame.x + 20;
+        const panelY = this.scale.height - 44;
+        const panelWidth = this.iceCreamFrame.width - 40;
+        const panelHeight = 34;
         const panel = this.add.graphics();
-        panel.fillStyle(0xFFFDF7, 0.78);
-        panel.fillRoundedRect(580, 247, 205, 98, 12);
-        panel.lineStyle(3, 0xA9DDF7, 0.85);
-        panel.strokeRoundedRect(580, 247, 205, 98, 12);
 
-        const label = this.add.text(560, 265, 'フィーバーゲージ', {
-            fontSize: '20px',
-            fill: '#7F6BAE',
-            fontStyle: 'bold',
-            stroke: '#FFFFFF',
-            strokeThickness: 4
-        });
-        label.setPosition(586, 265);
-        label.setShadow(2, 2, '#A9DDF7', 2, true, true);
+        panel.fillStyle(0xFFFDF7, 0.96);
+        panel.fillRoundedRect(panelX, panelY, panelWidth, panelHeight, 10);
+        panel.lineStyle(5, 0xF6A7C8, 1);
+        panel.strokeRoundedRect(panelX, panelY, panelWidth, panelHeight, 10);
+        panel.lineStyle(2, 0xFFE68A, 0.95);
+        panel.strokeRoundedRect(panelX + 3, panelY + 3, panelWidth - 6, panelHeight - 6, 8);
+        panel.setDepth(14);
 
         this.feverGauge = {
-            x: 586,
-            y: 305,
-            width: 190,
-            height: 22,
+            x: panelX + 12,
+            y: panelY + 10,
+            width: panelWidth - 24,
+            height: 16,
             graphics: this.add.graphics()
         };
+        this.feverGauge.graphics.setDepth(15);
 
         this.updateFeverGauge();
     }
@@ -418,7 +470,7 @@ export class GameScene extends Phaser.Scene {
             fontStyle: 'bold',
             stroke: '#FFFFFF',
             strokeThickness: 3
-        }).setDepth(6);
+        }).setDepth(15);
     }
 
     updateFeverGauge() {
@@ -437,9 +489,9 @@ export class GameScene extends Phaser.Scene {
         graphics.strokeRoundedRect(x, y, width, height, 8);
 
         if (progress > 0) {
-            graphics.fillStyle(isFever ? 0x5BA7D1 : 0xA9DDF7, 1);
+            graphics.fillStyle(isFever ? 0x5BA7D1 : 0x5FCB7A, 1);
             graphics.fillRoundedRect(x + 4, y + 4, (width - 8) * progress, height - 8, 6);
-            graphics.fillStyle(0xE8F8FF, 0.8);
+            graphics.fillStyle(isFever ? 0xE8F8FF : 0xDDFBE6, 0.85);
             graphics.fillRoundedRect(x + 7, y + 6, Math.max(0, (width - 14) * progress), 5, 3);
         }
     }
@@ -663,7 +715,7 @@ export class GameScene extends Phaser.Scene {
         graphics.lineStyle(2, 0xD9C7E8, 1);
         graphics.fillStyle(0xFFFDF7, 1);
 
-        for (let row = 0; row < this.ROWS; row++) {
+        for (let row = this.HIDDEN_ROWS; row < this.ROWS; row++) {
             for (let col = 0; col < this.COLS; col++) {
                 const x = this.GRID_START_X + col * this.CELL_SIZE;
                 const y = this.GRID_START_Y + row * this.CELL_SIZE;
@@ -672,16 +724,65 @@ export class GameScene extends Phaser.Scene {
             }
         }
 
-        graphics.generateTexture('gameGrid', this.COLS * this.CELL_SIZE, this.ROWS * this.CELL_SIZE);
+        graphics.generateTexture('gameGrid', this.COLS * this.CELL_SIZE, this.VISIBLE_ROWS * this.CELL_SIZE);
         graphics.destroy();
 
         // 配置位置
         const gridX = this.GRID_START_X + (this.COLS * this.CELL_SIZE) / 2;
-        const gridY = this.GRID_START_Y + (this.ROWS * this.CELL_SIZE) / 2;
+        const gridY = this.VISIBLE_GRID_START_Y + (this.VISIBLE_ROWS * this.CELL_SIZE) / 2;
         this.add.image(gridX, gridY, 'gameGrid');
     }
 
     setupInput() {
+        if (this.inputSetupDone) return;
+        this.inputSetupDone = true;
+
+        this.input.keyboard.addCapture([
+            Phaser.Input.Keyboard.KeyCodes.LEFT,
+            Phaser.Input.Keyboard.KeyCodes.RIGHT,
+            Phaser.Input.Keyboard.KeyCodes.SPACE
+        ]);
+
+        this.browserKeyBlocker = (event) => {
+            const isLeft = event.key === 'ArrowLeft';
+            const isRight = event.key === 'ArrowRight';
+            const isSpace = event.key === 'Space' || event.key === ' ' || event.code === 'Space';
+            const shouldBlockScroll = isLeft || isRight || event.key === 'ArrowUp' || event.key === 'ArrowDown' || isSpace;
+
+            if (!shouldBlockScroll) return;
+
+            event.preventDefault();
+
+            if (event.type === 'keydown') {
+                if (isLeft) {
+                    this.moveFallingIceCream(-1);
+                } else if (isRight) {
+                    this.moveFallingIceCream(1);
+                } else if (isSpace && !event.repeat && !this.isPaused && this.gameStarted && this.fallingIceCream) {
+                    this.hardDropIceCream();
+                }
+            }
+
+            event.stopImmediatePropagation();
+        };
+        window.addEventListener('keydown', this.browserKeyBlocker, { capture: true });
+        window.addEventListener('keyup', this.browserKeyBlocker, { capture: true });
+        document.addEventListener('keydown', this.browserKeyBlocker, { capture: true });
+        this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+            window.removeEventListener('keydown', this.browserKeyBlocker, { capture: true });
+            window.removeEventListener('keyup', this.browserKeyBlocker, { capture: true });
+            document.removeEventListener('keydown', this.browserKeyBlocker, { capture: true });
+        });
+
+        this.input.keyboard.on('keydown-LEFT', () => {
+            this.moveFallingIceCream(-1);
+        });
+
+        this.input.keyboard.on('keydown-SPACE', () => {
+            if (!this.isPaused && this.gameStarted && this.fallingIceCream) {
+                this.hardDropIceCream();
+            }
+        });
         // 左右操作
         this.input.keyboard.on('keydown-LEFT', () => {
             this.moveFallingIceCream(-1);
@@ -716,6 +817,23 @@ export class GameScene extends Phaser.Scene {
             return;
         }
 
+        if (this.useTsumPhysics) {
+            const bounds = this.getTsumBounds();
+            const nextX = Phaser.Math.Clamp(
+                this.fallingIceCream.x + direction * this.CELL_SIZE,
+                bounds.left + this.TSUM_RADIUS,
+                bounds.right - this.TSUM_RADIUS
+            );
+
+            if (Math.abs(nextX - this.fallingIceCream.x) < 1) return;
+
+            this.fallingIceCream.x = nextX;
+            this.fallingIceCream.vx = direction * 120;
+            this.updateFallingSpritePosition();
+            this.playMoveSe();
+            return;
+        }
+
         const nextCol = this.findHorizontalMoveTargetCol(direction);
         if (nextCol === this.fallingIceCream.col) return;
 
@@ -745,6 +863,7 @@ export class GameScene extends Phaser.Scene {
         this.isPaused = !this.isPaused;
         this.lastPausedTimerUpdateTime = this.time.now;
         this.lastFeverPauseUpdateTime = this.time.now;
+        this.lastElapsedTimerUpdateTime = this.time.now;
 
         if (this.isPaused) {
             this.showPauseOverlay();
@@ -785,6 +904,44 @@ export class GameScene extends Phaser.Scene {
         this.pauseOverlay = null;
     }
 
+    updateElapsedTime(time) {
+        if (!this.gameStarted) {
+            this.lastElapsedTimerUpdateTime = time;
+            return;
+        }
+
+        if (this.lastElapsedTimerUpdateTime === 0) {
+            this.lastElapsedTimerUpdateTime = time;
+            this.updateElapsedTimeText();
+            return;
+        }
+
+        const delta = time - this.lastElapsedTimerUpdateTime;
+        this.lastElapsedTimerUpdateTime = time;
+
+        if (delta <= 0) return;
+
+        this.elapsedPlayMs += delta;
+        this.updateElapsedTimeText();
+    }
+
+    updateElapsedTimeText() {
+        if (!this.elapsedTimeText) return;
+
+        const elapsedSecond = Math.floor(this.elapsedPlayMs / 1000);
+        if (elapsedSecond === this.lastDisplayedElapsedSecond) return;
+
+        this.lastDisplayedElapsedSecond = elapsedSecond;
+        this.elapsedTimeText.setText(this.formatElapsedTime(elapsedSecond));
+    }
+
+    formatElapsedTime(elapsedSecond) {
+        const minutes = Math.floor(elapsedSecond / 60);
+        const seconds = elapsedSecond % 60;
+
+        return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
     startCountdown() {
         const counts = ['3', '2', '1'];
         const startDelay = 1000;
@@ -803,6 +960,9 @@ export class GameScene extends Phaser.Scene {
 
         this.time.delayedCall(startDelay + counts.length * 700 + 500, () => {
             this.gameStarted = true;
+            this.elapsedPlayMs = 0;
+            this.lastElapsedTimerUpdateTime = this.time.now;
+            this.updateElapsedTimeText();
             this.spawnNextIceCream();
         });
     }
@@ -851,24 +1011,41 @@ export class GameScene extends Phaser.Scene {
 
     spawnNextIceCream() {
         // 新しいアイスクリームを生成
-        const typeIndex = this.nextIceCreamType;
+        const nextTypeIndex = this.nextIceCreamType;
+        const currentTypeIndex = this.nextIceCreamType;
         const startCol = Math.floor(this.COLS / 2);
+        const bounds = this.getTsumBounds();
+        const startX = this.iceCreamFrame.x + this.iceCreamFrame.width / 2;
 
         this.fallingIceCream = {
-            type: typeIndex,
+            type: currentTypeIndex,
             col: startCol,
+            x: Phaser.Math.Clamp(startX, bounds.left + this.TSUM_RADIUS, bounds.right - this.TSUM_RADIUS),
             y: this.GRID_START_Y - this.CELL_SIZE * 0.35,
+            vx: 0,
+            vy: 0,
+            angle: 0,
+            isDropping: false,
             passThroughUntil: 0
         };
         this.nextIceCreamType = Phaser.Math.Between(0, this.ICE_CREAM_TYPES.length - 1);
 
-        if (this.getLandingRow(startCol) === -1) {
+        if (this.useTsumPhysics && this.isAnyIceCreamOverGameOverLine()) {
             this.endGame();
             return;
         }
 
-        const flavor = this.ICE_CREAM_TYPES[typeIndex];
-        this.fallingSprite = this.add.image(this.getCellCenterX(startCol), this.fallingIceCream.y, flavor.texture);
+        if (!this.useTsumPhysics && this.getLandingRow(startCol) === -1) {
+            this.endGame();
+            return;
+        }
+
+        const flavor = this.ICE_CREAM_TYPES[currentTypeIndex];
+        this.fallingSprite = this.add.image(
+            this.useTsumPhysics ? this.fallingIceCream.x : this.getCellCenterX(startCol),
+            this.fallingIceCream.y,
+            flavor.texture
+        );
         this.fallingSprite.setScale(this.ICE_SCALE);
         this.fallingSprite.setDepth(5);
         this.updateNextPreview();
@@ -880,16 +1057,27 @@ export class GameScene extends Phaser.Scene {
         if (this.isPaused) {
             this.pauseMeltTimersDuringStops(time);
             this.pauseFeverTimeDuringMatchResolution(time);
+            this.lastElapsedTimerUpdateTime = time;
             return;
         }
 
+        this.updateElapsedTime(time);
         this.updateMeltedIceCreams(time);
         this.updateFeverVisuals(time, delta);
         this.pauseMeltTimersDuringStops(time);
         this.pauseFeverTimeDuringMatchResolution(time);
 
+        if (this.useTsumPhysics) {
+            this.updateTsumPhysics(time, delta);
+        }
+
         if (!this.gameStarted) return;
         if (!this.fallingIceCream) return;
+
+        if (this.useTsumPhysics) {
+            this.updateFallingTsum(time, delta);
+            return;
+        }
 
         this.fallingIceCream.y += this.dropSpeed * (delta / 1000);
 
@@ -904,6 +1092,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     fixIceCreamToGrid() {
+        if (this.useTsumPhysics) {
+            this.fixIceCreamToTsumPile();
+            return;
+        }
+
         // 現在のアイスクリームをグリッドに固定
         const col = this.fallingIceCream.col;
         const row = this.getLandingRow(col);
@@ -929,6 +1122,210 @@ export class GameScene extends Phaser.Scene {
 
         // 3つそろったら消す
         this.startMatchResolution();
+    }
+
+    getTsumBounds() {
+        return {
+            left: this.iceCreamFrame.x + 16,
+            right: this.iceCreamFrame.x + this.iceCreamFrame.width - 16,
+            top: this.iceCreamFrame.y,
+            floor: this.iceCreamFrame.y + this.iceCreamFrame.height - 28
+        };
+    }
+
+    updateFallingTsum(time, delta) {
+        if (!this.fallingIceCream) return;
+
+        const dt = Math.min(delta / 1000, 0.033);
+        const bounds = this.getTsumBounds();
+        const radius = this.TSUM_RADIUS;
+        const falling = this.fallingIceCream;
+
+        if (!falling.isDropping) {
+            falling.vx *= 0.85;
+            this.updateFallingSpritePosition();
+            return;
+        }
+
+        falling.vy += this.TSUM_GRAVITY * dt;
+        falling.x += falling.vx * dt;
+        falling.y += falling.vy * dt;
+        falling.angle += falling.vx * dt * 0.55;
+        falling.vx *= 0.992;
+
+        if (falling.x < bounds.left + radius) {
+            falling.x = bounds.left + radius;
+            falling.vx = Math.abs(falling.vx) * this.TSUM_BOUNCE;
+        } else if (falling.x > bounds.right - radius) {
+            falling.x = bounds.right - radius;
+            falling.vx = -Math.abs(falling.vx) * this.TSUM_BOUNCE;
+        }
+
+        let touched = false;
+        if (falling.y > bounds.floor - radius) {
+            falling.y = bounds.floor - radius;
+            falling.vy *= -this.TSUM_BOUNCE;
+            falling.vx *= 0.34;
+            touched = true;
+        }
+
+        for (const piece of this.tsumPieces) {
+            const dx = falling.x - piece.x;
+            const dy = falling.y - piece.y;
+            const minDistance = radius * 2;
+            const distance = Math.max(1, Math.hypot(dx, dy));
+
+            if (distance >= minDistance) continue;
+
+            const nx = dx / distance;
+            const ny = dy / distance;
+            const overlap = minDistance - distance;
+            falling.x += nx * overlap;
+            falling.y += ny * overlap;
+
+            const impact = falling.vx * nx + falling.vy * ny;
+            if (impact < 0) {
+                falling.vx -= 0.28 * impact * nx;
+                falling.vy -= 0.28 * impact * ny;
+            }
+
+            falling.vx += piece.vx * 0.015;
+            falling.angle += nx * 0.9;
+            piece.vx -= nx * 0.8;
+            piece.vy -= ny * 0.25;
+            touched = true;
+        }
+
+        this.updateFallingSpritePosition();
+
+        const slowEnough = Math.abs(falling.vy) < 130 && Math.abs(falling.vx) < 70;
+        if (touched && slowEnough && falling.y > bounds.top + radius * 2) {
+            falling.vx *= 0.08;
+            falling.vy *= 0.04;
+            this.fixIceCreamToGrid();
+        }
+    }
+
+    updateTsumPhysics(time, delta) {
+        if (!this.tsumPieces || this.tsumPieces.length === 0) return;
+
+        const dt = Math.min(delta / 1000, 0.033);
+        const bounds = this.getTsumBounds();
+        const radius = this.TSUM_RADIUS;
+
+        for (const piece of this.tsumPieces) {
+            if (piece.removing) continue;
+
+            piece.vy += this.TSUM_GRAVITY * dt;
+            piece.x += piece.vx * dt;
+            piece.y += piece.vy * dt;
+            piece.angle += piece.vx * dt * 0.55;
+            piece.vx *= this.TSUM_FRICTION;
+            piece.vy *= 0.997;
+
+            if (piece.x < bounds.left + radius) {
+                piece.x = bounds.left + radius;
+                piece.vx = Math.abs(piece.vx) * this.TSUM_BOUNCE;
+            } else if (piece.x > bounds.right - radius) {
+                piece.x = bounds.right - radius;
+                piece.vx = -Math.abs(piece.vx) * this.TSUM_BOUNCE;
+            }
+
+            if (piece.y > bounds.floor - radius) {
+                piece.y = bounds.floor - radius;
+                piece.vy *= -this.TSUM_BOUNCE;
+                piece.vx *= 0.34;
+            }
+        }
+
+        for (let i = 0; i < this.tsumPieces.length; i++) {
+            const a = this.tsumPieces[i];
+            if (a.removing) continue;
+
+            for (let j = i + 1; j < this.tsumPieces.length; j++) {
+                const b = this.tsumPieces[j];
+                if (b.removing) continue;
+
+                const dx = b.x - a.x;
+                const dy = b.y - a.y;
+                const minDistance = radius * 2;
+                const distance = Math.max(1, Math.hypot(dx, dy));
+                if (distance >= minDistance) continue;
+
+                const nx = dx / distance;
+                const ny = dy / distance;
+                const overlap = minDistance - distance;
+                a.x -= nx * overlap * 0.5;
+                a.y -= ny * overlap * 0.5;
+                b.x += nx * overlap * 0.5;
+                b.y += ny * overlap * 0.5;
+
+                const relativeVelocity = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+                if (relativeVelocity < 0) {
+                    const impulse = -relativeVelocity * 0.025;
+                    a.vx -= impulse * nx;
+                    a.vy -= impulse * ny;
+                    b.vx += impulse * nx;
+                    b.vy += impulse * ny;
+                }
+            }
+        }
+
+        this.syncTsumSprites();
+    }
+
+    fixIceCreamToTsumPile() {
+        if (!this.fallingIceCream) return;
+
+        const flavor = this.ICE_CREAM_TYPES[this.fallingIceCream.type];
+        const sprite = this.add.image(this.fallingIceCream.x, this.fallingIceCream.y, flavor.texture);
+        sprite.setScale(this.ICE_SCALE);
+        sprite.setDepth(4);
+
+        this.tsumPieces.push({
+            type: this.fallingIceCream.type,
+            x: this.fallingIceCream.x,
+            y: this.fallingIceCream.y,
+            vx: this.fallingIceCream.vx || 0,
+            vy: this.fallingIceCream.vy || 0,
+            angle: this.fallingIceCream.angle || 0,
+            placedAt: this.time.now,
+            melted: false,
+            feverFrozenUntil: 0,
+            sprite
+        });
+
+        if (this.fallingSprite) {
+            this.fallingSprite.destroy();
+            this.fallingSprite = null;
+        }
+
+        this.fallingIceCream = null;
+        this.syncTsumSprites();
+        this.time.delayedCall(520, () => this.startMatchResolution());
+    }
+
+    syncTsumSprites() {
+        for (const piece of this.tsumPieces) {
+            if (!piece.sprite || piece.removing) continue;
+
+            piece.sprite.setPosition(piece.x, piece.y);
+            piece.sprite.setAngle(piece.angle);
+
+            if (piece.melted) {
+                piece.sprite.setAlpha(0.42);
+                piece.sprite.setTint(0xCFE8FF);
+                piece.sprite.setScale(this.MELTED_ICE_SCALE_X, this.MELTED_ICE_SCALE_Y);
+            } else if (this.isFeverFrozenCell(piece, this.time.now)) {
+                piece.sprite.setAlpha(1);
+                piece.sprite.setTint(0xE8F8FF);
+                piece.sprite.setScale(this.ICE_SCALE);
+            } else {
+                piece.sprite.setAlpha(1);
+                piece.sprite.clearTint();
+                piece.sprite.setScale(this.ICE_SCALE);
+            }
+        }
     }
 
     startMatchResolution() {
@@ -962,6 +1359,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     async checkAndRemove3Match() {
+        if (this.useTsumPhysics) {
+            await this.checkAndRemoveTsumMatches();
+            return;
+        }
+
         // 同じ味が3つ以上つながったアイスクリームをチェックして消す
         let scoreDelta = 0;
         let chainCount = 1;
@@ -1018,6 +1420,120 @@ export class GameScene extends Phaser.Scene {
         this.redrawGame();
     }
 
+    async checkAndRemoveTsumMatches() {
+        let scoreDelta = 0;
+        let chainCount = 1;
+        let removed = true;
+
+        while (removed) {
+            removed = false;
+            let chainBaseScore = 0;
+            const removeTargets = new Set();
+            const visited = new Set();
+
+            for (let i = 0; i < this.tsumPieces.length; i++) {
+                const piece = this.tsumPieces[i];
+                if (visited.has(i) || piece.removing || piece.melted) continue;
+
+                const connected = this.findConnectedTsumPieces(i, visited);
+                if (connected.length >= 3) {
+                    chainBaseScore += this.calculateMatchScore(piece.type, connected.length);
+                    connected.forEach((index) => removeTargets.add(index));
+                }
+            }
+
+            if (removeTargets.size > 0) {
+                scoreDelta += this.calculateChainScore(chainBaseScore, chainCount);
+                this.playTsumMatchEffect([...removeTargets], chainCount);
+
+                [...removeTargets]
+                    .sort((a, b) => b - a)
+                    .forEach((index) => {
+                        const piece = this.tsumPieces[index];
+                        if (!piece) return;
+                        this.erasedCounts[piece.type]++;
+                        if (piece.sprite) piece.sprite.destroy();
+                        this.tsumPieces.splice(index, 1);
+                    });
+
+                this.maxChain = Math.max(this.maxChain, chainCount);
+                removed = true;
+                chainCount++;
+                await this.wait(980);
+                this.nudgeTsumPileAfterRemoval();
+                await this.wait(360);
+            }
+        }
+
+        this.score += scoreDelta;
+        this.scoreText.setText(`スコア: ${this.score}`);
+        this.checkFeverTime(scoreDelta);
+        this.updateFeverGauge();
+        this.syncTsumSprites();
+    }
+
+    findConnectedTsumPieces(startIndex, visited) {
+        const type = this.tsumPieces[startIndex].type;
+        const connected = [];
+        const stack = [startIndex];
+        const connectDistance = this.TSUM_RADIUS * 2.28;
+
+        visited.add(startIndex);
+
+        while (stack.length > 0) {
+            const currentIndex = stack.pop();
+            const current = this.tsumPieces[currentIndex];
+            connected.push(currentIndex);
+
+            for (let i = 0; i < this.tsumPieces.length; i++) {
+                const next = this.tsumPieces[i];
+                if (
+                    visited.has(i) ||
+                    next.removing ||
+                    next.melted ||
+                    next.type !== type ||
+                    Math.hypot(next.x - current.x, next.y - current.y) > connectDistance
+                ) {
+                    continue;
+                }
+
+                visited.add(i);
+                stack.push(i);
+            }
+        }
+
+        return connected;
+    }
+
+    playTsumMatchEffect(targetIndexes, chainCount) {
+        if (this.audioContext) {
+            const now = this.audioContext.currentTime;
+            this.playInstrumentTone(783.99, now, 0.18, 0.04, 'sparkle');
+            this.playInstrumentTone(1046.50, now + 0.09, 0.2, 0.045, 'sparkle');
+            this.playInstrumentTone(1318.51, now + 0.2, 0.22, 0.04, 'sparkle');
+            this.playInstrumentTone(1567.98, now + 0.33, 0.32, 0.032, 'sparkle');
+        }
+
+        targetIndexes.forEach((index, order) => {
+            const piece = this.tsumPieces[index];
+            if (!piece) return;
+
+            const flavor = this.ICE_CREAM_TYPES[piece.type];
+            const delay = order * 65;
+            this.createMatchedIceCreamPop(piece.x, piece.y, flavor.texture, delay);
+            this.time.delayedCall(delay, () => this.createSparkleBurst(piece.x, piece.y));
+        });
+
+        this.showChainText(chainCount);
+    }
+
+    nudgeTsumPileAfterRemoval() {
+        for (const piece of this.tsumPieces) {
+            piece.vx += Phaser.Math.Between(-60, 60);
+            piece.vy -= Phaser.Math.Between(20, 80);
+        }
+    }
+
     wait(duration) {
         return new Promise((resolve) => {
             this.time.delayedCall(duration, resolve);
@@ -1054,6 +1570,23 @@ export class GameScene extends Phaser.Scene {
     }
 
     freezeMeltedIceCreams() {
+        if (this.useTsumPhysics) {
+            let hasFrozenIceCreams = false;
+
+            for (const piece of this.tsumPieces) {
+                if (!piece.melted) continue;
+
+                piece.melted = false;
+                piece.placedAt = this.time.now;
+                piece.feverFrozenUntil = this.feverActiveUntil;
+                hasFrozenIceCreams = true;
+                this.createSnowflakeEffect(piece.x, piece.y);
+            }
+
+            this.syncTsumSprites();
+            return hasFrozenIceCreams;
+        }
+
         let hasFrozenIceCreams = false;
 
         for (let row = 0; row < this.ROWS; row++) {
@@ -1278,6 +1811,26 @@ export class GameScene extends Phaser.Scene {
     }
 
     updateMeltedIceCreams(time) {
+        if (this.useTsumPhysics) {
+            let shouldSync = false;
+
+            for (const piece of this.tsumPieces) {
+                if (
+                    piece.melted ||
+                    this.isFeverFrozenCell(piece, time) ||
+                    time - piece.placedAt < this.meltTimeMs
+                ) {
+                    continue;
+                }
+
+                piece.melted = true;
+                shouldSync = true;
+            }
+
+            if (shouldSync) this.syncTsumSprites();
+            return;
+        }
+
         let shouldRedraw = false;
 
         for (let row = 0; row < this.ROWS; row++) {
@@ -1324,6 +1877,21 @@ export class GameScene extends Phaser.Scene {
     }
 
     meltExpiredFeverFrozenIceCreams(time) {
+        if (this.useTsumPhysics) {
+            let shouldSync = false;
+
+            for (const piece of this.tsumPieces) {
+                if (!piece.feverFrozenUntil || time < this.feverActiveUntil) continue;
+
+                piece.melted = true;
+                piece.feverFrozenUntil = 0;
+                shouldSync = true;
+            }
+
+            if (shouldSync) this.syncTsumSprites();
+            return;
+        }
+
         let shouldRedraw = false;
 
         for (let row = 0; row < this.ROWS; row++) {
@@ -1363,6 +1931,15 @@ export class GameScene extends Phaser.Scene {
 
         if (pausedDuration <= 0) return;
 
+        if (this.useTsumPhysics) {
+            for (const piece of this.tsumPieces) {
+                if (!piece.melted) {
+                    piece.placedAt += pausedDuration;
+                }
+            }
+            return;
+        }
+
         for (let row = 0; row < this.ROWS; row++) {
             for (let col = 0; col < this.COLS; col++) {
                 const cell = this.grid[row][col];
@@ -1398,22 +1975,13 @@ export class GameScene extends Phaser.Scene {
     showFeverScreenEffect() {
         this.clearFeverScreenEffect();
 
-        const overlay = this.add.rectangle(400, 300, 800, 600, 0xDDF6FF, 0.18);
+        const overlay = this.add.rectangle(400, 300, 800, 600, 0x070B26, 0.58);
         const frameGlow = this.add.graphics();
-        const snowflakes = [];
+        const effects = [];
 
         overlay.setDepth(2);
         frameGlow.setDepth(12);
         this.drawFeverFrameGlow(frameGlow);
-
-        this.tweens.add({
-            targets: overlay,
-            alpha: 0.3,
-            duration: 650,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
-        });
 
         this.tweens.add({
             targets: frameGlow,
@@ -1424,28 +1992,137 @@ export class GameScene extends Phaser.Scene {
             ease: 'Sine.easeInOut'
         });
 
-        for (let i = 0; i < 16; i++) {
-            const x = Phaser.Math.Between(35, 765);
-            const y = Phaser.Math.Between(-80, 560);
-            const snowflake = this.createSnowflakeGraphic(x, y, Phaser.Math.Between(7, 13), 0xFFFFFF, 0.82);
+        const spotlight = this.add.graphics();
+        spotlight.setDepth(3);
+        spotlight.fillStyle(0xFFE68A, 0.12);
+        spotlight.fillTriangle(0, 0, 248, 0, this.iceCreamFrame.x + 20, this.scale.height);
+        spotlight.fillTriangle(this.scale.width, 0, this.scale.width - 248, 0, this.iceCreamFrame.x + this.iceCreamFrame.width - 20, this.scale.height);
+        spotlight.fillStyle(0xF8AFC9, 0.08);
+        spotlight.fillTriangle(120, 0, 330, 0, this.iceCreamFrame.x + this.iceCreamFrame.width / 2, this.scale.height);
+        effects.push(spotlight);
 
-            snowflake.setDepth(13);
-            snowflakes.push(snowflake);
+        this.tweens.add({
+            targets: spotlight,
+            alpha: 0.42,
+            duration: 820,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        const feverLabelGlow = this.add.text(this.iceCreamFrame.x + this.iceCreamFrame.width / 2, this.iceCreamFrame.y + 22, 'FEVER', {
+            fontSize: '44px',
+            fill: '#FFF8B8',
+            fontStyle: 'bold',
+            stroke: '#FFFFFF',
+            strokeThickness: 14
+        }).setOrigin(0.5).setDepth(12).setAlpha(0.82);
+        effects.push(feverLabelGlow);
+
+        const feverLabel = this.add.text(this.iceCreamFrame.x + this.iceCreamFrame.width / 2, this.iceCreamFrame.y + 22, 'FEVER', {
+            fontSize: '34px',
+            fill: '#FFF45C',
+            fontStyle: 'bold',
+            stroke: '#FFFDF7',
+            strokeThickness: 7
+        }).setOrigin(0.5).setDepth(13).setAlpha(1);
+        effects.push(feverLabel);
+
+        this.tweens.add({
+            targets: [feverLabel, feverLabelGlow],
+            scale: 1.1,
+            alpha: 0.9,
+            duration: 520,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        const lightColors = [0xFFE68A, 0xF8AFC9, 0xA9E8D1, 0xA9DDF7];
+        const lightPositions = [];
+        const leftX = this.iceCreamFrame.x + 10;
+        const rightX = this.iceCreamFrame.x + this.iceCreamFrame.width - 10;
+        const topY = this.iceCreamFrame.y + 10;
+        const bottomY = this.scale.height - 22;
+
+        for (let i = 0; i < 8; i++) {
+            const t = i / 7;
+            const x = Phaser.Math.Linear(leftX + 22, rightX - 22, t);
+            const isNearFeverLabel = Math.abs(x - this.iceCreamFrame.x - this.iceCreamFrame.width / 2) < 86;
+            if (!isNearFeverLabel) {
+                lightPositions.push({ x, y: topY });
+            }
+        }
+
+        for (let i = 0; i < 6; i++) {
+            const t = i / 5;
+            lightPositions.push({ x: leftX, y: Phaser.Math.Linear(topY + 58, bottomY, t) });
+            lightPositions.push({ x: rightX, y: Phaser.Math.Linear(topY + 58, bottomY, t) });
+        }
+
+        lightPositions.forEach((position, index) => {
+            const light = this.add.circle(position.x, position.y, 7, lightColors[index % lightColors.length], 0.92);
+            light.setDepth(13);
+            effects.push(light);
 
             this.tweens.add({
-                targets: snowflake,
-                y: y + Phaser.Math.Between(80, 150),
-                x: x + Phaser.Math.Between(-25, 25),
-                angle: Phaser.Math.Between(180, 420),
-                alpha: 0.35,
-                duration: Phaser.Math.Between(1800, 2800),
+                targets: light,
+                scale: 2.35,
+                alpha: 0.22,
+                duration: 430 + (index % 4) * 90,
+                repeat: -1,
+                yoyo: true,
+                ease: 'Sine.easeInOut'
+            });
+        });
+
+        for (let i = 0; i < 26; i++) {
+            const side = i % 2 === 0 ? -1 : 1;
+            const x = side < 0 ? Phaser.Math.Between(24, 104) : Phaser.Math.Between(696, 776);
+            const y = Phaser.Math.Between(70, 520);
+            const star = this.add.star(x, y, 5, 4, 11, lightColors[i % lightColors.length], 0.72);
+            star.setDepth(13);
+            effects.push(star);
+
+            this.tweens.add({
+                targets: star,
+                y: y - Phaser.Math.Between(28, 64),
+                angle: Phaser.Math.Between(160, 320),
+                alpha: 0.18,
+                duration: Phaser.Math.Between(1200, 2200),
                 repeat: -1,
                 yoyo: true,
                 ease: 'Sine.easeInOut'
             });
         }
 
-        this.feverScreenEffect = { overlay, frameGlow, snowflakes };
+        const feverLabelClearX = this.iceCreamFrame.x + this.iceCreamFrame.width / 2;
+        const feverLabelClearY = this.iceCreamFrame.y + 22;
+        for (let i = 0; i < 14; i++) {
+            const useLeftSide = i % 2 === 0;
+            const x = useLeftSide
+                ? Phaser.Math.Between(36, Math.max(36, feverLabelClearX - 132))
+                : Phaser.Math.Between(Math.min(this.scale.width - 36, feverLabelClearX + 132), this.scale.width - 36);
+            const y = Phaser.Math.Between(18, 82);
+            const sparkle = this.add.star(x, y, 4, 3, 7, lightColors[(i + 2) % lightColors.length], 0.72);
+            sparkle.setDepth(13);
+            sparkle.setAngle(Phaser.Math.Between(0, 45));
+            effects.push(sparkle);
+
+            this.tweens.add({
+                targets: sparkle,
+                x: x + Phaser.Math.Between(-18, 18),
+                y: y + Phaser.Math.Between(12, 28),
+                angle: Phaser.Math.Between(120, 260),
+                alpha: 0.2,
+                duration: Phaser.Math.Between(850, 1500),
+                repeat: -1,
+                yoyo: true,
+                ease: 'Sine.easeInOut'
+            });
+        }
+
+        this.feverScreenEffect = { overlay, frameGlow, effects };
     }
 
     drawFeverFrameGlow(frameGlow) {
@@ -1455,7 +2132,7 @@ export class GameScene extends Phaser.Scene {
         const sideLineBottomY = this.scale.height;
         const cornerRadius = 14;
 
-        frameGlow.lineStyle(12, 0xE8F8FF, 0.26);
+        frameGlow.lineStyle(16, 0xFFE68A, 0.22);
         frameGlow.beginPath();
         frameGlow.moveTo(frameX + cornerRadius, frameY - 5);
         frameGlow.lineTo(frameX + frameWidth - cornerRadius, frameY - 5);
@@ -1466,7 +2143,7 @@ export class GameScene extends Phaser.Scene {
         frameGlow.arc(frameX + cornerRadius, frameY + cornerRadius - 5, cornerRadius, Math.PI, -Math.PI / 2);
         frameGlow.strokePath();
 
-        frameGlow.lineStyle(6, 0xA9DDF7, 0.78);
+        frameGlow.lineStyle(7, 0xF8AFC9, 0.72);
         frameGlow.beginPath();
         frameGlow.moveTo(frameX + cornerRadius, frameY);
         frameGlow.lineTo(frameX + frameWidth - cornerRadius, frameY);
@@ -1481,10 +2158,10 @@ export class GameScene extends Phaser.Scene {
     clearFeverScreenEffect() {
         if (!this.feverScreenEffect) return;
 
-        const { overlay, frameGlow, snowflakes } = this.feverScreenEffect;
+        const { overlay, frameGlow, effects } = this.feverScreenEffect;
         overlay.destroy();
         frameGlow.destroy();
-        snowflakes.forEach((snowflake) => snowflake.destroy());
+        effects.forEach((effect) => effect.destroy());
         this.feverScreenEffect = null;
     }
 
@@ -1503,15 +2180,16 @@ export class GameScene extends Phaser.Scene {
     isIceCreamOverGameOverLine(row) {
         const placedIceScale = this.ICE_SCALE;
         const textureHeight = this.textures.get(this.ICE_CREAM_TYPES[0].texture).getSourceImage().height;
-        const iceTop = this.getCellCenterY(row) - (textureHeight * placedIceScale) / 2;
         const iceBottom = this.getCellCenterY(row) + (textureHeight * placedIceScale) / 2;
-        const overlapDepth = this.gameOverLineY - iceTop;
-        const hasLineOverlap = this.gameOverLineY >= iceTop && this.gameOverLineY <= iceBottom;
 
-        return hasLineOverlap && overlapDepth >= 10;
+        return iceBottom <= this.gameOverLineY;
     }
 
     isAnyIceCreamOverGameOverLine() {
+        if (this.useTsumPhysics) {
+            return this.tsumPieces.some((piece) => piece.y - this.TSUM_RADIUS <= this.gameOverLineY);
+        }
+
         for (let row = 0; row < this.ROWS; row++) {
             for (let col = 0; col < this.COLS; col++) {
                 if (this.grid[row][col] !== null && this.isIceCreamOverGameOverLine(row)) {
@@ -1526,10 +2204,32 @@ export class GameScene extends Phaser.Scene {
     updateFallingSpritePosition() {
         if (!this.fallingSprite || !this.fallingIceCream) return;
 
+        if (this.useTsumPhysics) {
+            this.fallingSprite.setPosition(this.fallingIceCream.x, this.fallingIceCream.y);
+            this.fallingSprite.setAngle(this.fallingIceCream.angle || 0);
+            return;
+        }
+
         this.fallingSprite.setPosition(this.getCellCenterX(this.fallingIceCream.col), this.fallingIceCream.y);
     }
 
     hardDropIceCream() {
+        if (this.useTsumPhysics) {
+            if (!this.fallingIceCream) return;
+
+            if (!this.fallingIceCream.isDropping) {
+                this.fallingIceCream.isDropping = true;
+                this.fallingIceCream.vy = Math.max(this.fallingIceCream.vy || 0, 80);
+                this.playMoveSe();
+                return;
+            }
+
+            this.fallingIceCream.vy = Math.max(this.fallingIceCream.vy || 0, 900);
+            this.fallingIceCream.vx *= 0.5;
+            this.playMoveSe();
+            return;
+        }
+
         const landingRow = this.getLandingRow(this.fallingIceCream.col);
         if (landingRow === -1) {
             this.endGame();
@@ -1548,10 +2248,15 @@ export class GameScene extends Phaser.Scene {
         const flavor = this.ICE_CREAM_TYPES[this.nextIceCreamType];
         this.nextPreviewSprite = this.add.image(this.nextPreviewFrame.centerX, this.nextPreviewFrame.centerY, flavor.texture);
         this.nextPreviewSprite.setScale(0.92);
-        this.nextPreviewSprite.setDepth(4);
+        this.nextPreviewSprite.setDepth(15);
     }
 
     redrawGame() {
+        if (this.useTsumPhysics) {
+            this.syncTsumSprites();
+            return;
+        }
+
         this.placedSprites.forEach((sprite) => sprite.destroy());
         this.placedSprites = [];
 
