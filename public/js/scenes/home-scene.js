@@ -1,5 +1,5 @@
 import { goToGame, goToHowTo, goToRanking } from '../app-init.js';
-import { appState } from '../state/app-state.js';
+import { appState, setPlayerSession } from '../state/app-state.js';
 import { BackendApi, createRankingStore } from '/src/backend/api.js';
 
 const ICE_ASSETS = [
@@ -46,12 +46,8 @@ export class HomeScene extends Phaser.Scene {
     this.createGameLikeFrame();
     this.scatterIceImages();
     this.createTitle();
-
-    if (appState.playerSession?.accessToken) {
-      this.createHomeMenu();
-    } else {
-      this.createLoginButton();
-    }
+    this.createHomeMenu();   // ログイン状態に関わらず常にメニュー表示
+    this.createLoginArea();  // 左上にログイン/ログアウト
   }
 
   createPastelBackground() {
@@ -156,14 +152,58 @@ export class HomeScene extends Phaser.Scene {
     });
   }
 
-  createLoginButton() {
-    const centerX = this.scale.width / 2;
-    const centerY = 405;
+  createLoginArea() {
+    if (appState.playerSession?.accessToken) {
+      // ログイン済み: プレイヤー名 + ログアウトボタン（左上）
+      this.add.text(12, 10, appState.playerSession.playerName, {
+        fontSize: '13px',
+        color: '#7f6bae',
+        fontFamily: "'Nunito', sans-serif",
+        fontStyle: 'bold',
+        stroke: '#ffffff',
+        strokeThickness: 3,
+      }).setDepth(6);
 
-    this.createMenuButton(centerX, centerY, 'ログイン', () => {
-      this.scene.launch('LoginScene');
-      this.scene.bringToTop('LoginScene');
-    });
+      this._makeSmallBtn(72, 44, 'ログアウト', () => {
+        localStorage.removeItem('dainagon-player');
+        setPlayerSession(null);
+        this.scene.restart();
+      });
+    } else {
+      // 未ログイン: ログインボタン（左上）
+      this._makeSmallBtn(72, 32, 'ログイン', () => {
+        this.scene.launch('LoginScene');
+        this.scene.bringToTop('LoginScene');
+      });
+    }
+  }
+
+  _makeSmallBtn(cx, cy, label, onClick) {
+    const BW = 128, BH = 36;
+    const g = this.add.graphics().setDepth(6);
+    const draw = alpha => {
+      g.clear();
+      g.fillStyle(0xfffdf7, alpha);
+      g.fillRoundedRect(cx - BW / 2, cy - BH / 2, BW, BH, BH / 2);
+      g.lineStyle(2.5, 0xa9ddf7, 1);
+      g.strokeRoundedRect(cx - BW / 2, cy - BH / 2, BW, BH, BH / 2);
+    };
+    draw(0.94);
+
+    this.add.text(cx, cy, label, {
+      fontSize: '15px',
+      color: '#5ba7d1',
+      fontFamily: "'Nunito', sans-serif",
+      fontStyle: 'bold',
+      stroke: '#ffffff',
+      strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(7);
+
+    const zone = this.add.zone(cx, cy, BW, BH)
+      .setInteractive({ useHandCursor: true }).setDepth(8);
+    zone.on('pointerdown', onClick);
+    zone.on('pointerover', () => draw(0.7));
+    zone.on('pointerout',  () => draw(0.94));
   }
 
   createHomeMenu() {
