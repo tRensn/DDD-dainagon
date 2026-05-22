@@ -17,6 +17,11 @@ export class LoginScene extends Phaser.Scene {
   }
 
   create() {
+    if (appState.playerSession?.accessToken) {
+      goToHome();
+      return;
+    }
+
     // 半透明の薄暗いオーバーレイ（キャンバス全面）→ ホーム画面が透けて見える
     // setInteractive() でクリックを吸収しホーム画面への貫通を防ぐ
     this.add.rectangle(400, 300, 800, 600, 0x000000, 0.55).setInteractive();
@@ -39,7 +44,7 @@ export class LoginScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => this.scene.stop());
+      .on('pointerdown', () => this.scene.restart());
 
     this._setupEvents();
 
@@ -137,7 +142,9 @@ export class LoginScene extends Phaser.Scene {
     const password = document.getElementById('loginPassword')?.value ?? '';
     const statusEl = document.getElementById('loginStatus');
 
-    if (!playerName || !password) return;
+    if (!playerName || !password) {
+      return;
+    }
 
     this._setBusy(true);
     setDomStatus(statusEl, mode === 'login' ? 'ログインしています...' : '登録しています...', false);
@@ -162,7 +169,9 @@ export class LoginScene extends Phaser.Scene {
   _setBusy(isBusy) {
     ['loginBtn', 'registerBtn'].forEach((id) => {
       const el = document.getElementById(id);
-      if (el) el.disabled = isBusy;
+      if (el) {
+        el.disabled = isBusy;
+      }
     });
   }
 }
@@ -170,7 +179,9 @@ export class LoginScene extends Phaser.Scene {
 // ===== Utility Functions =====
 
 function setDomStatus(el, message, isError) {
-  if (!el) return;
+  if (!el) {
+    return;
+  }
   el.textContent = message;
   el.style.color = isError ? '#e05c7a' : '#7b5ea7';
 }
