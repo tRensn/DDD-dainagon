@@ -8,11 +8,15 @@ import { LoginScene } from './scenes/login-scene.js';
 import { ResultScene } from './scenes/result-scene.js';
 import { HomeScene } from './scenes/home-scene.js';
 import { GameScene } from './scenes/game-scene.js';
-import { appState, setMockSession } from './state/app-state.js';
+import { HowToScene } from './scenes/how-to-scene.js';
+import { RankingScene } from './scenes/ranking-scene.js';
+import { setMockSession } from './state/app-state.js';
 
 const sceneEntries = [
   ['HomeScene', HomeScene],
   ['LoginScene', LoginScene],
+  ['HowToScene', HowToScene],
+  ['RankingScene', RankingScene],
   ['GameScene', GameScene],
   ['ResultScene', ResultScene],
 ];
@@ -40,6 +44,8 @@ const game = new Phaser.Game(gameConfig);
 export function goToHome() {
   game.scene.stop('LoginScene');
   game.scene.stop('GameScene');
+  game.scene.stop('HowToScene');
+  game.scene.stop('RankingScene');
   game.scene.stop('ResultScene');
   game.scene.start('HomeScene');
 }
@@ -57,8 +63,22 @@ export function showLoginModal() {
  */
 export function goToGame() {
   game.scene.stop('HomeScene');
+  game.scene.stop('HowToScene');
+  game.scene.stop('RankingScene');
   game.scene.stop('ResultScene');
   game.scene.start('GameScene');
+}
+
+export function goToHowTo() {
+  game.scene.stop('HomeScene');
+  game.scene.stop('RankingScene');
+  game.scene.start('HowToScene');
+}
+
+export function goToRanking() {
+  game.scene.stop('HomeScene');
+  game.scene.stop('HowToScene');
+  game.scene.start('RankingScene');
 }
 
 /**
