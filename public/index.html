@@ -13,6 +13,13 @@
         box-sizing: border-box;
       }
 
+      html,
+      body {
+        overflow: hidden;
+        height: 100%;
+        overscroll-behavior: none;
+      }
+
       body {
         margin: 0;
         padding: 0;
@@ -22,6 +29,10 @@
         align-items: center;
         min-height: 100vh;
         font-family: 'Nunito', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+
+      #game-root {
+        touch-action: none;
       }
 
       #game-root canvas {
