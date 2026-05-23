@@ -8,6 +8,10 @@ export class GameScene extends Phaser.Scene {
 
     preload() {
         this.load.image('cone-image', 'js/state/game screen image/image.png');
+        this.load.image('ice-azuki-source', 'assets/images/あずき.png');
+        this.load.image('ice-cookie-source', 'assets/images/クッキーアンドクリーム.png');
+        this.load.image('ice-strawberry-source', 'assets/images/ストロベリー.png');
+        this.load.image('ice-mint-source', 'assets/images/チョコミント.png');
         // 画像やアセットの読み込みはここで行います
     }
 
@@ -21,6 +25,7 @@ export class GameScene extends Phaser.Scene {
         this.initGame();
         this.createIceCreamFrame();
         this.createNextIceCreamFrame();
+        this.createScoreGuideFrame();
 
         // UI表示
         this.createUI();
@@ -223,7 +228,9 @@ export class GameScene extends Phaser.Scene {
             y: previewY,
             size: previewSize,
             centerX: previewX + previewSize / 2,
-            centerY: previewY + previewSize / 2
+            centerY: previewY + previewSize / 2,
+            firstY: previewY + 38,
+            secondY: previewY + 82
         };
 
         graphics.fillStyle(0xFFFDF7, 0.94);
@@ -240,6 +247,150 @@ export class GameScene extends Phaser.Scene {
 
         graphics.lineStyle(2, 0xFFF7FB, 0.9);
         graphics.strokeRoundedRect(previewX + 3, previewY + 3, previewSize - 6, previewSize - 6, 8);
+    }
+
+    createScoreGuideFrame() {
+        {
+            const x = this.nextPreviewFrame.x;
+            const y = this.nextPreviewFrame.y + this.nextPreviewFrame.size + 12;
+            const width = this.scale.width - x - 10;
+            const height = 174;
+            const graphics = this.add.graphics();
+            graphics.setDepth(14);
+
+            graphics.fillStyle(0xFFFDF7, 0.92);
+            graphics.fillRoundedRect(x, y, width, height, 10);
+            graphics.lineStyle(5, 0xA9DDF7, 0.95);
+            graphics.strokeRoundedRect(x, y, width, height, 10);
+            graphics.lineStyle(2, 0xFFFFFF, 0.9);
+            graphics.strokeRoundedRect(x + 3, y + 3, width - 6, height - 6, 8);
+
+            const lines = [
+                { text: '基礎点（3個消し）', size: '15px', color: '#7F6BAE', y: y + 25 },
+                { text: '大納言あずき  +10', size: '14px', color: '#8A3450', y: y + 60 },
+                { text: 'クッキー&クリーム  +5', size: '13px', color: '#5B4B42', y: y + 90 },
+                { text: 'ストロベリー  +3', size: '14px', color: '#D9577F', y: y + 120 },
+                { text: 'チョコミント  -5', size: '14px', color: '#4F9F8B', y: y + 150 }
+            ];
+
+            this.scoreGuideTexts = lines.map((line) =>
+                this.add.text(x + width / 2, line.y, line.text, {
+                    fontFamily: "'Nunito', sans-serif",
+                    fontSize: line.size,
+                    fill: line.color,
+                    fontStyle: 'bold',
+                    stroke: '#FFFFFF',
+                    strokeThickness: 3
+                }).setOrigin(0.5).setDepth(15)
+            );
+            return;
+        }
+
+        {
+            const x = this.nextPreviewFrame.x;
+            const y = this.nextPreviewFrame.y + this.nextPreviewFrame.size + 12;
+            const width = this.scale.width - x - 10;
+            const height = 174;
+            const graphics = this.add.graphics();
+            graphics.setDepth(14);
+
+            graphics.fillStyle(0xFFFDF7, 0.92);
+            graphics.fillRoundedRect(x, y, width, height, 10);
+            graphics.lineStyle(5, 0xA9DDF7, 0.95);
+            graphics.strokeRoundedRect(x, y, width, height, 10);
+            graphics.lineStyle(2, 0xFFFFFF, 0.9);
+            graphics.strokeRoundedRect(x + 3, y + 3, width - 6, height - 6, 8);
+
+            const lines = [
+                { text: '基礎点', size: '18px', color: '#7F6BAE', y: y + 20 },
+                { text: '3個消し', size: '14px', color: '#7F6BAE', y: y + 42 },
+                { text: '大納言あずき  +10', size: '14px', color: '#8A3450', y: y + 72 },
+                { text: 'クッキー&クリーム  +5', size: '13px', color: '#5B4B42', y: y + 100 },
+                { text: 'ストロベリー  +3', size: '14px', color: '#D9577F', y: y + 128 },
+                { text: 'チョコミント  -5', size: '14px', color: '#4F9F8B', y: y + 156 }
+            ];
+
+            this.scoreGuideTexts = lines.map((line) =>
+                this.add.text(x + width / 2, line.y, line.text, {
+                    fontSize: line.size,
+                    fill: line.color,
+                    fontStyle: 'bold',
+                    stroke: '#FFFFFF',
+                    strokeThickness: 3
+                }).setOrigin(0.5).setDepth(15)
+            );
+            return;
+        }
+
+        {
+            const x = this.nextPreviewFrame.x;
+            const y = this.nextPreviewFrame.y + this.nextPreviewFrame.size + 12;
+            const width = this.scale.width - x - 10;
+            const height = 166;
+            const graphics = this.add.graphics();
+            graphics.setDepth(14);
+
+            graphics.fillStyle(0xFFFDF7, 0.9);
+            graphics.fillRoundedRect(x, y, width, height, 10);
+            graphics.lineStyle(5, 0xA9DDF7, 0.95);
+            graphics.strokeRoundedRect(x, y, width, height, 10);
+            graphics.lineStyle(2, 0xFFFFFF, 0.9);
+            graphics.strokeRoundedRect(x + 3, y + 3, width - 6, height - 6, 8);
+
+            const lines = [
+                { text: '基礎点（3個消し）', size: '14px', color: '#7F6BAE', y: y + 22 },
+                { text: '大納言あずき +10', size: '12px', color: '#8A3450', y: y + 56 },
+                { text: 'クッキー&クリーム +5', size: '11px', color: '#5B4B42', y: y + 84 },
+                { text: 'ストロベリー +3', size: '12px', color: '#D9577F', y: y + 112 },
+                { text: 'チョコミント -5', size: '12px', color: '#4F9F8B', y: y + 140 }
+            ];
+
+            this.scoreGuideTexts = lines.map((line) =>
+                this.add.text(x + width / 2, line.y, line.text, {
+                    fontSize: line.size,
+                    fill: line.color,
+                    fontStyle: 'bold',
+                    stroke: '#FFFFFF',
+                    strokeThickness: 3
+                }).setOrigin(0.5).setDepth(15)
+            );
+            return;
+        }
+
+        const width = Math.min(174, this.scale.width - this.nextPreviewFrame.x - 10);
+        const x = this.nextPreviewFrame.x - Math.max(0, width - this.nextPreviewFrame.size);
+        const y = this.nextPreviewFrame.y + this.nextPreviewFrame.size + 12;
+        const height = 186;
+        const graphics = this.add.graphics();
+        graphics.setDepth(14);
+
+        graphics.fillStyle(0xFFFDF7, 0.9);
+        graphics.fillRoundedRect(x, y, width, height, 10);
+        graphics.lineStyle(5, 0xA9DDF7, 0.95);
+        graphics.strokeRoundedRect(x, y, width, height, 10);
+        graphics.lineStyle(2, 0xFFFFFF, 0.9);
+        graphics.strokeRoundedRect(x + 3, y + 3, width - 6, height - 6, 8);
+
+        const lines = [
+            { text: '各種類の', size: '14px', color: '#7F6BAE', y: y + 14 },
+            { text: 'スコア増減', size: '14px', color: '#7F6BAE', y: y + 30 },
+            { text: '大納言あずき +10', size: '12px', color: '#8A3450', y: y + 56 },
+            { text: 'クッキー&', size: '12px', color: '#5B4B42', y: y + 78 },
+            { text: 'クリーム +5', size: '12px', color: '#5B4B42', y: y + 94 },
+            { text: 'ストロベリー +3', size: '12px', color: '#D9577F', y: y + 118 },
+            { text: 'チョコミント -5', size: '12px', color: '#4F9F8B', y: y + 140 },
+            { text: '連鎖・4個以上で+', size: '11px', color: '#7F6BAE', y: y + 166 }
+        ];
+
+        this.scoreGuideTexts = lines.map((line) =>
+            this.add.text(x + width / 2, line.y, line.text, {
+                fontSize: line.size,
+                fill: line.color,
+                fontStyle: 'bold',
+                stroke: '#FFFFFF',
+                strokeThickness: 3
+            }).setOrigin(0.5).setDepth(15)
+        );
     }
 
     initGame() {
@@ -285,9 +436,21 @@ export class GameScene extends Phaser.Scene {
         this.canRetry = false;
         this.isPaused = false;
         this.fallingIceCream = null;
-        this.nextIceCreamType = Phaser.Math.Between(0, this.ICE_CREAM_TYPES.length - 1);
+        this.nextIceCreamTypes = [
+            Phaser.Math.Between(0, this.ICE_CREAM_TYPES.length - 1),
+            Phaser.Math.Between(0, this.ICE_CREAM_TYPES.length - 1)
+        ];
+        this.nextIceCreamType = this.nextIceCreamTypes[0];
         this.grid = this.createEmptyGrid();
-        this.dropSpeed = 58;
+        this.dropSpeedLevels = [
+            { score: 0, speed: 58 },
+            { score: 30, speed: 166 },
+            { score: 60, speed: 275 },
+            { score: 90, speed: 383 },
+            { score: 120, speed: 492 },
+            { score: 150, speed: 600 }
+        ];
+        this.dropSpeed = this.dropSpeedLevels[0].speed;
         this.horizontalPassThroughMs = 260;
         this.meltTimeMs = 20000;
         this.feverGaugeScore = 0;
@@ -304,6 +467,12 @@ export class GameScene extends Phaser.Scene {
     }
 
     createIceCreamTextures() {
+        this.createIceCreamImageTexture('ice-azuki', 'ice-azuki-source');
+        this.createIceCreamImageTexture('ice-cookie', 'ice-cookie-source');
+        this.createIceCreamImageTexture('ice-strawberry', 'ice-strawberry-source');
+        this.createIceCreamImageTexture('ice-mint', 'ice-mint-source');
+        return;
+
         this.createIceCreamTexture('ice-azuki', 0xC78AA0, 0x8A3450, (graphics) => {
             graphics.fillStyle(0x7B2339, 1);
             [[26, 28, 7, 10], [42, 23, 6, 9], [50, 40, 7, 10], [31, 48, 5, 8], [20, 41, 5, 7]].forEach(([x, y, w, h]) => {
@@ -343,6 +512,43 @@ export class GameScene extends Phaser.Scene {
             graphics.fillEllipse(32, 24, 14, 7);
             graphics.fillEllipse(48, 39, 9, 5);
         });
+    }
+
+    createIceCreamImageTexture(key, sourceKey, options = {}) {
+        if (this.textures.exists(key)) return;
+
+        const source = this.textures.get(sourceKey).getSourceImage();
+        const size = 76;
+        const padding = 3;
+        const cropSize = Math.min(source.width, source.height);
+        const cropX = Math.round((source.width - cropSize) / 2);
+        const cropY = Math.round((source.height - cropSize) / 2);
+        const texture = this.textures.createCanvas(key, size, size);
+        const context = texture.getContext();
+
+        context.clearRect(0, 0, size, size);
+        context.drawImage(source, cropX, cropY, cropSize, cropSize, padding, padding, size - padding * 2, size - padding * 2);
+
+        if (options.removeBlack) {
+            const imageData = context.getImageData(0, 0, size, size);
+            const pixels = imageData.data;
+
+            for (let i = 0; i < pixels.length; i += 4) {
+                const red = pixels[i];
+                const green = pixels[i + 1];
+                const blue = pixels[i + 2];
+                const alpha = pixels[i + 3];
+                const isBlackBackground = alpha > 0 && red < 42 && green < 42 && blue < 42;
+
+                if (isBlackBackground) {
+                    pixels[i + 3] = 0;
+                }
+            }
+
+            context.putImageData(imageData, 0, 0);
+        }
+
+        texture.refresh();
     }
 
     createIceCreamTexture(key, baseColor, outlineColor, drawDetails) {
@@ -1106,8 +1312,7 @@ export class GameScene extends Phaser.Scene {
 
     spawnNextIceCream() {
         // 新しいアイスクリームを生成
-        const nextTypeIndex = this.nextIceCreamType;
-        const currentTypeIndex = this.nextIceCreamType;
+        const currentTypeIndex = this.nextIceCreamTypes[0];
         const startCol = Math.floor(this.COLS / 2);
         const bounds = this.getTsumBounds();
         const startX = this.iceCreamFrame.x + this.iceCreamFrame.width / 2;
@@ -1123,7 +1328,9 @@ export class GameScene extends Phaser.Scene {
             isDropping: false,
             passThroughUntil: 0
         };
-        this.nextIceCreamType = Phaser.Math.Between(0, this.ICE_CREAM_TYPES.length - 1);
+        this.nextIceCreamTypes.shift();
+        this.nextIceCreamTypes.push(Phaser.Math.Between(0, this.ICE_CREAM_TYPES.length - 1));
+        this.nextIceCreamType = this.nextIceCreamTypes[0];
 
         if (this.useTsumPhysics && this.isAnyIceCreamOverGameOverLine()) {
             this.endGame();
@@ -1218,7 +1425,12 @@ export class GameScene extends Phaser.Scene {
         }
 
         this.fallingIceCream = null;
+        const shouldEndGame = this.isAnyIceCreamOverGameOverLine();
         this.redrawGame();
+        if (shouldEndGame) {
+            this.endGame();
+            return;
+        }
 
         // 3つそろったら消す
         this.startMatchResolution();
@@ -1413,14 +1625,17 @@ export class GameScene extends Phaser.Scene {
             piece.sprite.setAngle(piece.angle);
 
             if (piece.melted) {
-                piece.sprite.setAlpha(0.42);
+                piece.sprite.setTexture(this.ICE_CREAM_TYPES[piece.type].texture);
+                piece.sprite.setAlpha(0.46);
                 piece.sprite.setTint(0xCFE8FF);
-                piece.sprite.setScale(this.MELTED_ICE_SCALE_X, this.MELTED_ICE_SCALE_Y);
+                piece.sprite.setScale(this.ICE_SCALE);
             } else if (this.isFeverFrozenCell(piece, this.time.now)) {
+                piece.sprite.setTexture(this.ICE_CREAM_TYPES[piece.type].texture);
                 piece.sprite.setAlpha(1);
                 piece.sprite.setTint(0xE8F8FF);
                 piece.sprite.setScale(this.ICE_SCALE);
             } else {
+                piece.sprite.setTexture(this.ICE_CREAM_TYPES[piece.type].texture);
                 piece.sprite.setAlpha(1);
                 piece.sprite.clearTint();
                 piece.sprite.setScale(this.ICE_SCALE);
@@ -1513,6 +1728,7 @@ export class GameScene extends Phaser.Scene {
 
         // スコア更新
         this.score += scoreDelta;
+        this.updateDropSpeedByScore();
         this.scoreText.setText(`スコア: ${this.score}`);
 
         this.checkFeverTime(scoreDelta);
@@ -1566,6 +1782,7 @@ export class GameScene extends Phaser.Scene {
         }
 
         this.score += scoreDelta;
+        this.updateDropSpeedByScore();
         this.scoreText.setText(`スコア: ${this.score}`);
         this.checkFeverTime(scoreDelta);
         this.updateFeverGauge();
@@ -1715,6 +1932,14 @@ export class GameScene extends Phaser.Scene {
 
     calculateChainScore(baseScore, chainCount) {
         return baseScore + 3 * (chainCount - 1);
+    }
+
+    updateDropSpeedByScore() {
+        const speedLevel = this.dropSpeedLevels.reduce((currentLevel, level) => {
+            return this.score >= level.score ? level : currentLevel;
+        }, this.dropSpeedLevels[0]);
+
+        this.dropSpeed = speedLevel.speed;
     }
 
     findConnectedIceCreams(startRow, startCol, visited) {
@@ -2252,14 +2477,15 @@ export class GameScene extends Phaser.Scene {
     isIceCreamOverGameOverLine(row) {
         const placedIceScale = this.ICE_SCALE;
         const textureHeight = this.textures.get(this.ICE_CREAM_TYPES[0].texture).getSourceImage().height;
-        const iceBottom = this.getCellCenterY(row) + (textureHeight * placedIceScale) / 2;
+        const iceTop = this.getCellCenterY(row) - (textureHeight * placedIceScale) / 2;
+        const gameOverThresholdY = this.gameOverLineY - this.CELL_SIZE;
 
-        return iceBottom <= this.gameOverLineY;
+        return iceTop <= gameOverThresholdY;
     }
 
     isAnyIceCreamOverGameOverLine() {
         if (this.useTsumPhysics) {
-            return this.tsumPieces.some((piece) => piece.y - this.TSUM_RADIUS <= this.gameOverLineY);
+            return this.tsumPieces.some((piece) => piece.y - this.TSUM_RADIUS <= this.gameOverLineY - this.TSUM_RADIUS * 2);
         }
 
         for (let row = 0; row < this.ROWS; row++) {
@@ -2391,11 +2617,20 @@ export class GameScene extends Phaser.Scene {
         if (this.nextPreviewSprite) {
             this.nextPreviewSprite.destroy();
         }
+        if (this.nextPreviewSecondSprite) {
+            this.nextPreviewSecondSprite.destroy();
+        }
 
-        const flavor = this.ICE_CREAM_TYPES[this.nextIceCreamType];
-        this.nextPreviewSprite = this.add.image(this.nextPreviewFrame.centerX, this.nextPreviewFrame.centerY, flavor.texture);
-        this.nextPreviewSprite.setScale(0.92);
+        const nextFlavor = this.ICE_CREAM_TYPES[this.nextIceCreamTypes[0]];
+        const secondFlavor = this.ICE_CREAM_TYPES[this.nextIceCreamTypes[1]];
+        this.nextPreviewSprite = this.add.image(this.nextPreviewFrame.centerX, this.nextPreviewFrame.firstY, nextFlavor.texture);
+        this.nextPreviewSprite.setScale(0.72);
         this.nextPreviewSprite.setDepth(15);
+
+        this.nextPreviewSecondSprite = this.add.image(this.nextPreviewFrame.centerX, this.nextPreviewFrame.secondY, secondFlavor.texture);
+        this.nextPreviewSecondSprite.setScale(0.52);
+        this.nextPreviewSecondSprite.setAlpha(0.72);
+        this.nextPreviewSecondSprite.setDepth(15);
     }
 
     redrawGame() {
@@ -2414,15 +2649,15 @@ export class GameScene extends Phaser.Scene {
                     const cell = this.grid[row][col];
                     const typeIndex = cell.type;
                     const flavor = this.ICE_CREAM_TYPES[typeIndex];
-                    const sprite = this.add.image(this.getCellCenterX(col), this.getCellCenterY(row), flavor.texture);
+                    const texture = flavor.texture;
+                    const sprite = this.add.image(this.getCellCenterX(col), this.getCellCenterY(row), texture);
                     sprite.setScale(this.ICE_SCALE);
                     sprite.setDepth(4);
                     if (cell.melted) {
-                        sprite.setAlpha(0.42);
+                        sprite.setAlpha(0.46);
                         sprite.setTint(0xCFE8FF);
-                        sprite.setScale(this.MELTED_ICE_SCALE_X, this.MELTED_ICE_SCALE_Y);
-                        sprite.setY(this.getCellCenterY(row) + 13);
-                        this.createMeltedIceCreamOverlay(this.getCellCenterX(col), this.getCellCenterY(row) + 24);
+                        sprite.setScale(this.ICE_SCALE);
+                        this.createMeltedIceCreamOverlay(this.getCellCenterX(col), this.getCellCenterY(row), flavor.texture);
                     } else if (this.isFeverFrozenCell(cell, this.time.now)) {
                         sprite.setTint(0xE8F8FF);
                         this.createFrozenIceCreamOverlay(this.getCellCenterX(col), this.getCellCenterY(row));
@@ -2433,17 +2668,35 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
-    createMeltedIceCreamOverlay(x, y) {
-        const shadow = this.add.ellipse(x, y + 4, 56, 20, 0xA9DDF7, 0.35);
-        const puddle = this.add.ellipse(x, y, 48, 17, 0xFFFFFF, 0.72);
-        const dripLeft = this.add.ellipse(x - 18, y + 7, 15, 9, 0xFFFFFF, 0.6);
-        const dripRight = this.add.ellipse(x + 19, y + 8, 18, 11, 0xDDEBFF, 0.62);
-        const shine = this.add.ellipse(x - 8, y - 3, 18, 5, 0xFFF7FB, 0.85);
+    createMeltedIceCreamOverlay(x, y, texture) {
+        const meltTint = this.add.circle(x, y, 25, 0xDDEBFF, 0.12);
+        const meltedShape = this.add.image(x, y + 12, texture);
+        const syrup = this.add.graphics();
+        const puddleY = y + 29;
+        const shadow = this.add.ellipse(x, puddleY + 4, 48, 14, 0x7F6BAE, 0.1);
+        const puddle = this.add.ellipse(x, puddleY, 44, 14, 0xFFFFFF, 0.46);
+        const dripLeft = this.add.ellipse(x - 15, puddleY + 6, 12, 7, 0xFFFFFF, 0.42);
+        const dripRight = this.add.ellipse(x + 16, puddleY + 7, 14, 8, 0xDDEBFF, 0.44);
+        const shine = this.add.ellipse(x - 7, puddleY - 2, 14, 4, 0xFFF7FB, 0.56);
 
-        [shadow, puddle, dripLeft, dripRight, shine].forEach((part) => {
+        syrup.fillStyle(0xFFFFFF, 0.42);
+        syrup.fillRoundedRect(x - 20, y - 3, 7, 22, 4);
+        syrup.fillRoundedRect(x - 1, y + 4, 6, 18, 4);
+        syrup.fillRoundedRect(x + 16, y - 5, 7, 24, 4);
+        syrup.fillStyle(0xA9DDF7, 0.3);
+        syrup.fillCircle(x - 17, y + 21, 5);
+        syrup.fillCircle(x + 19, y + 22, 6);
+        syrup.fillCircle(x + 2, y + 20, 4);
+
+        meltedShape.setScale(this.MELTED_ICE_SCALE_X, this.MELTED_ICE_SCALE_Y);
+        meltedShape.setAlpha(0.32);
+        meltedShape.setTint(0xDDEBFF);
+
+        [meltTint, meltedShape, syrup, shadow, puddle, dripLeft, dripRight, shine].forEach((part) => {
             part.setDepth(5);
         });
-        this.placedSprites.push(shadow, puddle, dripLeft, dripRight, shine);
+        syrup.setDepth(6);
+        this.placedSprites.push(meltTint, meltedShape, syrup, shadow, puddle, dripLeft, dripRight, shine);
     }
 
     createFrozenIceCreamOverlay(x, y) {
