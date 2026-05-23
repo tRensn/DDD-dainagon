@@ -2198,7 +2198,6 @@ export class GameScene extends Phaser.Scene {
 
         this.feverRedrawTimer = 0;
         this.updateFeverGauge();
-        this.redrawGame();
     }
 
     meltExpiredFeverFrozenIceCreams(time) {
@@ -2639,7 +2638,10 @@ export class GameScene extends Phaser.Scene {
             return;
         }
 
-        this.placedSprites.forEach((sprite) => sprite.destroy());
+        this.placedSprites.forEach((sprite) => {
+            this.tweens.killTweensOf(sprite);
+            sprite.destroy();
+        });
         this.placedSprites = [];
 
         // グリッド内のアイスクリームを描画
@@ -2700,44 +2702,58 @@ export class GameScene extends Phaser.Scene {
     }
 
     createFrozenIceCreamOverlay(x, y) {
-        const glow = this.add.circle(x, y, 30, 0xDDEBFF, 0.28);
-        const snowflake = this.createSnowflakeGraphic(x, y, 20, 0xE8F8FF, 0.98);
-        const orbit = this.add.circle(x, y, 24);
+        const glow = this.add.circle(x, y, 31, 0xDDEBFF, 0.2);
+        const windRing = this.add.circle(x, y, 27);
+        const blizzardParts = [];
 
         glow.setDepth(5);
-        snowflake.setDepth(7);
-        orbit.setDepth(6);
-        orbit.setStrokeStyle(2, 0xA9DDF7, 0.55);
+        windRing.setDepth(6);
+        windRing.setStrokeStyle(2, 0xE8F8FF, 0.42);
 
         this.tweens.add({
-            targets: snowflake,
+            targets: windRing,
             angle: 360,
-            duration: 1800,
-            repeat: -1,
-            ease: 'Linear'
-        });
-
-        this.tweens.add({
-            targets: snowflake,
-            y: y - 8,
+            alpha: 0.16,
             scale: 1.22,
-            duration: 650,
-            yoyo: true,
+            duration: 900,
             repeat: -1,
+            yoyo: true,
             ease: 'Sine.easeInOut'
         });
 
         this.tweens.add({
-            targets: orbit,
-            alpha: 0.18,
-            scale: 1.35,
-            duration: 700,
+            targets: glow,
+            alpha: 0.34,
+            scale: 1.12,
+            duration: 620,
             yoyo: true,
             repeat: -1,
             ease: 'Sine.easeInOut'
         });
 
-        this.placedSprites.push(glow, orbit, snowflake);
+        for (let i = 0; i < 10; i++) {
+            const angle = (Math.PI * 2 * i) / 10;
+            const radius = i % 2 === 0 ? 24 : 31;
+            const startX = x + Math.cos(angle) * radius;
+            const startY = y + Math.sin(angle) * radius * 0.72;
+            const flake = this.add.circle(startX, startY, i % 3 === 0 ? 3 : 2, 0xFFFFFF, 0.82);
+            flake.setDepth(7);
+            blizzardParts.push(flake);
+
+            this.tweens.add({
+                targets: flake,
+                x: startX + Phaser.Math.Between(-22, 22),
+                y: startY + Phaser.Math.Between(-12, 12),
+                alpha: 0.2,
+                scale: 0.45,
+                duration: 520 + i * 45,
+                repeat: -1,
+                yoyo: true,
+                ease: 'Sine.easeInOut'
+            });
+        }
+
+        this.placedSprites.push(glow, windRing, ...blizzardParts);
     }
 
     createSnowflakeGraphic(x, y, radius, color, alpha) {
