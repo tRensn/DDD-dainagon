@@ -6,11 +6,13 @@ export class ModeSelectScene extends Phaser.Scene {
   }
 
   create() {
+    this._timeLimitOn = false;
+
     // 背景を半透明に（ログインと同じ演出）
     this.add.rectangle(400, 300, 800, 600, 0x000000, 0.52)
       .setInteractive(); // クリックを背面のホーム画面に貫通させない
 
-    const CX = 400, CY = 300, CW = 470, CH = 320, CR = 20;
+    const CX = 400, CY = 300, CW = 470, CH = 355, CR = 20;
 
     // カード本体
     const g = this.add.graphics();
@@ -41,23 +43,59 @@ export class ModeSelectScene extends Phaser.Scene {
     closeBtn.on('pointerover', () => closeBtn.setColor('#E05070'));
     closeBtn.on('pointerout',  () => closeBtn.setColor('#C07898'));
 
+    // ─── 時間制限トグル（カード左上エリア） ───
+    const TLX = CX - CW/2 + 22;
+    const TLY = CY - CH/2 + 92;
+    const TW = 44, TH = 22, TR = 11;
+
+    this.add.text(TLX, TLY, '時間制限', {
+      fontSize: '13px', color: '#9A6080', fontFamily: 'sans-serif', fontStyle: '700',
+      stroke: '#FFFFFF', strokeThickness: 3,
+    }).setOrigin(0, 0.5);
+
+    const trackG = this.add.graphics();
+    const knobG  = this.add.graphics();
+    const statusTxt = this.add.text(TLX + 82 + TW, TLY, 'OFF', {
+      fontSize: '13px', color: '#B090A8', fontFamily: 'sans-serif', fontStyle: '700',
+    }).setOrigin(0, 0.5);
+
+    const drawToggle = () => {
+      const on = this._timeLimitOn;
+      trackG.clear();
+      trackG.fillStyle(on ? 0xF6A7C8 : 0xCCBBCC, 1);
+      trackG.fillRoundedRect(TLX + 76, TLY - TH/2, TW, TH, TR);
+      knobG.clear();
+      const kx = TLX + 76 + (on ? TW - TH/2 : TH/2);
+      knobG.fillStyle(0xFFFFFF, 1);
+      knobG.fillCircle(kx, TLY, TH/2 - 2);
+      knobG.lineStyle(1.5, on ? 0xE890B8 : 0xBBAAAA, 1);
+      knobG.strokeCircle(kx, TLY, TH/2 - 2);
+      statusTxt.setText(on ? 'ON' : 'OFF');
+      statusTxt.setColor(on ? '#C05A80' : '#B090A8');
+    };
+    drawToggle();
+
+    this.add.zone(TLX + 76 + TW/2, TLY, TW + 48, TH + 10)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => { this._timeLimitOn = !this._timeLimitOn; drawToggle(); });
+
     // 2つのモードカード
     this._modeCard(
-      CX - 110, CY + 22,
+      CX - 110, CY + 45,
       'ノーマルモード',
       'グリッドに積み上げて\n3つそろえて消そう！',
       [0xF8AFC9, 0xA9E8D1, 0xF6F0DE, 0xC78AA0],
       0xFFFDF7, 0xF6A7C8, '#7F6BAE',
-      () => goToGame()
+      () => goToGame(this._timeLimitOn)
     );
 
     this._modeCard(
-      CX + 110, CY + 22,
+      CX + 110, CY + 45,
       'ころころモード',
       '物理演算でころころ！\nアイスが転がる新感覚',
       [0xA9E8D1, 0xF8AFC9, 0xC78AA0, 0xF6F0DE],
       0xF0F8FF, 0xA9DDF7, '#5BA7D1',
-      () => goToGravityGame()
+      () => goToGravityGame(this._timeLimitOn)
     );
   }
 

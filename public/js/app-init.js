@@ -69,22 +69,22 @@ export function showLoginModal() {
 /**
  * ゲーム画面へ遷移
  */
-export function goToGame() {
+export function goToGame(timeLimitOn = false) {
   game.scene.stop('HomeScene');
   game.scene.stop('HowToScene');
   game.scene.stop('RankingScene');
   game.scene.stop('ResultScene');
   game.scene.stop('ModeSelectScene');
-  game.scene.start('GameScene');
+  game.scene.start('GameScene', { timeLimitOn });
 }
 
-export function goToGravityGame() {
+export function goToGravityGame(timeLimitOn = false) {
   game.scene.stop('HomeScene');
   game.scene.stop('HowToScene');
   game.scene.stop('RankingScene');
   game.scene.stop('ResultScene');
   game.scene.stop('ModeSelectScene');
-  game.scene.start('GravityGameScene');
+  game.scene.start('GravityGameScene', { timeLimitOn });
 }
 
 export function goToHowTo() {

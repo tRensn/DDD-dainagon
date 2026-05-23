@@ -11,6 +11,10 @@ export class GravityGameScene extends Phaser.Scene {
     super({ key: 'GravityGameScene' });
   }
 
+  init(data) {
+    this.timeLimitOn = data?.timeLimitOn ?? false;
+  }
+
   preload() {
     this.load.image('cone-image', 'js/state/game screen image/image.png');
     if (!this.textures.exists('ice-azuki-source'))
@@ -78,6 +82,7 @@ export class GravityGameScene extends Phaser.Scene {
     this.createUI();
     this.createFeverGauge();
     this.createPauseHint();
+    this.createPauseButton();
     this.createMobileControls();
     this.setupInput();
     this.createPastelBgm();
@@ -321,12 +326,12 @@ export class GravityGameScene extends Phaser.Scene {
     timePanel.lineStyle(3, 0xA9DDF7, 0.9);
     timePanel.strokeRoundedRect(14, 188, 206, 70, 12);
 
-    this.add.text(28, 200, 'タイム', {
+    this.add.text(28, 200, this.timeLimitOn ? '残り時間' : 'タイム', {
       fontSize:'18px', fill:'#5BA7D1', fontStyle:'bold',
       stroke:'#FFFFFF', strokeThickness:4,
     }).setShadow(2,2,'#DDEBFF',2,true,true).setDepth(15);
 
-    this.elapsedTimeText = this.add.text(28, 221, '00:00', {
+    this.elapsedTimeText = this.add.text(28, 221, this.timeLimitOn ? '01:00' : '00:00', {
       fontSize:'30px', fill:'#7F6BAE', fontStyle:'bold',
       stroke:'#FFFFFF', strokeThickness:5,
     }).setShadow(2,2,'#A9DDF7',2,true,true).setDepth(15);
@@ -379,6 +384,67 @@ export class GravityGameScene extends Phaser.Scene {
     }).setDepth(6);
   }
 
+  createPauseButton() {
+    const x = 20, y = 18, w = 140, h = 42, r = 12;
+    const btn = this.add.graphics().setDepth(18);
+    btn.fillStyle(0xFFFDF7, 0.94);
+    btn.fillRoundedRect(x, y, w, h, r);
+    btn.lineStyle(4, 0xF6A7C8, 1);
+    btn.strokeRoundedRect(x, y, w, h, r);
+    btn.lineStyle(2, 0xFFF7FB, 0.9);
+    btn.strokeRoundedRect(x + 3, y + 3, w - 6, h - 6, r - 3);
+
+    const label = this.add.text(x + w / 2, y + h / 2, 'PAUSE（esc）', {
+      fontSize: '17px', fill: '#7F6BAE', fontStyle: 'bold',
+      stroke: '#FFFFFF', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(19);
+
+    const hit = this.add.zone(x + w / 2, y + h / 2, w, h).setDepth(20)
+      .setInteractive({ useHandCursor: true });
+    hit.on('pointerdown', (p, lx, ly, ev) => {
+      if (ev) ev.stopPropagation();
+      if (!this.gameActive || !this.gameStarted) return;
+      btn.setAlpha(0.76); label.setScale(0.96);
+      this.togglePause();
+    });
+    hit.on('pointerup',  () => { btn.setAlpha(1); label.setScale(1); });
+    hit.on('pointerout', () => { btn.setAlpha(1); label.setScale(1); });
+
+    this.pauseButton = { btn, label, hit };
+  }
+
+  updatePauseButtonLabel() {
+    if (!this.pauseButton) return;
+    this.pauseButton.label.setText(this.isPaused ? 'RESUME' : 'PAUSE（esc）');
+  }
+
+  _makePauseBtn(x, y, text, action) {
+    const W = 176, H = 40;
+    const base = this.add.graphics().setDepth(14);
+    base.fillStyle(0xFFFFFF, 0.96);
+    base.fillRoundedRect(x - W/2, y - H/2, W, H, 12);
+    base.lineStyle(4, 0xF6A7C8, 1);
+    base.strokeRoundedRect(x - W/2, y - H/2, W, H, 12);
+    base.lineStyle(2, 0xFFF7FB, 0.95);
+    base.strokeRoundedRect(x - W/2 + 3, y - H/2 + 3, W - 6, H - 6, 9);
+
+    const label = this.add.text(x, y, text, {
+      fontSize: '20px', fill: '#7F6BAE', fontStyle: 'bold',
+      stroke: '#FFFFFF', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(15);
+
+    const hit = this.add.zone(x, y, W, H).setDepth(16).setInteractive({ useHandCursor: true });
+    hit.on('pointerdown', (p, lx, ly, ev) => {
+      if (ev) ev.stopPropagation();
+      base.setAlpha(0.72); label.setScale(0.95);
+      action();
+    });
+    hit.on('pointerup',  () => { base.setAlpha(1); label.setScale(1); });
+    hit.on('pointerout', () => { base.setAlpha(1); label.setScale(1); });
+
+    return { base, label, hit };
+  }
+
   createMobileControls() {
     const buttons = [
       { x:612, y:520, radius:30,  label:'<',    fontSize:'30px',
@@ -413,7 +479,7 @@ export class GravityGameScene extends Phaser.Scene {
     const isFever = this.time.now < this.feverActiveUntil;
     const progress = isFever
       ? Phaser.Math.Clamp((this.feverActiveUntil - this.time.now) / this.feverDurationMs, 0, 1)
-      : Phaser.Math.Clamp(this.feverGaugeScore / 20, 0, 1);
+      : Phaser.Math.Clamp(this.feverGaugeScore / 12, 0, 1);
     const { x, y, width:w, height:h, graphics:g } = this.feverGauge;
     g.clear();
     g.fillStyle(0xFFFFFF, 0.95); g.fillRoundedRect(x,y,w,h,8);
@@ -443,6 +509,9 @@ export class GravityGameScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-ESC', () => {
       if (this.gameActive && this.gameStarted) this.togglePause();
     });
+    this.input.keyboard.on('keydown-ENTER', () => {
+      if (this.isPaused) this.scene.restart();
+    });
   }
 
   togglePause() {
@@ -457,31 +526,42 @@ export class GravityGameScene extends Phaser.Scene {
       this.matter.world.resume();
       this.hidePauseOverlay();
     }
+    this.updatePauseButtonLabel();
   }
 
   showPauseOverlay() {
+    if (this.pauseOverlay) return;
     const cx = this.FRAME_X + this.FRAME_WIDTH / 2;
     const y  = this.FRAME_Y + 190;
+
     const panel = this.add.graphics().setDepth(13);
-    panel.fillStyle(0xFFFDF7,0.88); panel.fillRoundedRect(cx-115,y-42,230,92,14);
-    panel.lineStyle(4,0xA9DDF7,0.9); panel.strokeRoundedRect(cx-115,y-42,230,92,14);
-    const txt = this.add.text(cx, y-12, 'PAUSE', {
-      fontSize:'34px', fill:'#7F6BAE', fontStyle:'bold',
-      stroke:'#FFFFFF', strokeThickness:6,
-    }).setOrigin(0.5).setDepth(14).setShadow(2,2,'#A9DDF7',2,true,true);
-    const retryTxt = this.add.text(cx, y+28, 'Enterでリトライ', {
-      fontSize:'19px', fill:'#E85D75', fontStyle:'bold',
-      stroke:'#FFFFFF', strokeThickness:4,
-    }).setOrigin(0.5).setDepth(14).setShadow(2,2,'#F6A7C8',2,true,true);
-    this.pauseOverlay = { panel, txt, retryTxt };
+    panel.fillStyle(0xFFFDF7, 0.88);
+    panel.fillRoundedRect(cx - 125, y - 62, 250, 230, 16);
+    panel.lineStyle(4, 0xA9DDF7, 0.9);
+    panel.strokeRoundedRect(cx - 125, y - 62, 250, 230, 16);
+
+    const txt = this.add.text(cx, y - 12, 'PAUSE', {
+      fontSize: '34px', fill: '#7F6BAE', fontStyle: 'bold',
+      stroke: '#FFFFFF', strokeThickness: 6,
+    }).setOrigin(0.5).setDepth(14).setShadow(2, 2, '#A9DDF7', 2, true, true);
+
+    const retryBtn  = this._makePauseBtn(cx, y + 42,  'リトライ',     () => this.scene.restart());
+    const resumeBtn = this._makePauseBtn(cx, y + 88,  'ゲームに戻る', () => this.togglePause());
+    const homeBtn   = this._makePauseBtn(cx, y + 134, 'ホーム画面へ', () => this.scene.start('HomeScene'));
+
+    this.pauseOverlay = { panel, txt, buttons: [retryBtn, resumeBtn, homeBtn] };
+    this.updatePauseButtonLabel();
   }
 
   hidePauseOverlay() {
     if (!this.pauseOverlay) return;
     this.pauseOverlay.panel.destroy();
     this.pauseOverlay.txt.destroy();
-    this.pauseOverlay.retryTxt.destroy();
+    this.pauseOverlay.buttons.forEach(b => {
+      b.base.destroy(); b.label.destroy(); b.hit.destroy();
+    });
     this.pauseOverlay = null;
+    this.updatePauseButtonLabel();
   }
 
   // ─── カウントダウン ───
@@ -605,6 +685,7 @@ export class GravityGameScene extends Phaser.Scene {
       }
     }
 
+    if (this.timeLimitOn && this.elapsedPlayMs >= 60000) { this.endGame(); return; }
     if (this.isAnyPieceOverLine()) { this.endGame(); return; }
 
     // 転がってきたアイスの遅延マッチを定期検出（200ms間隔）
@@ -635,11 +716,18 @@ export class GravityGameScene extends Phaser.Scene {
 
   updateElapsedTimeText() {
     if (!this.elapsedTimeText) return;
-    const sec = Math.floor(this.elapsedPlayMs / 1000);
-    if (sec === this.lastDisplayedElapsedSecond) return;
-    this.lastDisplayedElapsedSecond = sec;
-    const m = Math.floor(sec / 60), s = sec % 60;
-    this.elapsedTimeText.setText(`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`);
+    if (this.timeLimitOn) {
+      const remaining = Math.max(0, 60 - Math.floor(this.elapsedPlayMs / 1000));
+      const m = Math.floor(remaining / 60), s = remaining % 60;
+      this.elapsedTimeText.setText(`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`);
+      this.elapsedTimeText.setColor(remaining <= 10 ? '#E85D75' : '#7F6BAE');
+    } else {
+      const sec = Math.floor(this.elapsedPlayMs / 1000);
+      if (sec === this.lastDisplayedElapsedSecond) return;
+      this.lastDisplayedElapsedSecond = sec;
+      const m = Math.floor(sec / 60), s = sec % 60;
+      this.elapsedTimeText.setText(`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`);
+    }
   }
 
   // ─── 溶けによる縮小 ───
@@ -765,21 +853,36 @@ export class GravityGameScene extends Phaser.Scene {
 
       let chainBase = 0;
       const toRemove = new Set();
+      const groupInfos = [];
       for (const group of groups) {
-        chainBase += this.calcMatchScore(group[0]._iceType, group.length);
+        const groupScore = this.calcMatchScore(group[0]._iceType, group.length);
+        chainBase += groupScore;
         group.forEach(p => toRemove.add(p));
+        const gcx = group.reduce((s, p) => s + p.x, 0) / group.length;
+        const gcy = group.reduce((s, p) => s + p.y, 0) / group.length;
+        groupInfos.push({ cx: gcx, cy: gcy, score: groupScore });
       }
-      scoreDelta += this.calcChainScore(chainBase, chainCount);
+      const iterScore = this.calcChainScore(chainBase, chainCount);
+      scoreDelta += iterScore;
+
+      const pieces = [...toRemove];
+      const cx = pieces.reduce((s, p) => s + p.x, 0) / pieces.length;
+      const cy = pieces.reduce((s, p) => s + p.y, 0) / pieces.length;
+      this.showScorePopup(cx, cy, chainBase, chainCount, groupInfos);
+
       this.playMatchEffect(toRemove, chainCount);
 
+      let clearedThisIter = 0;
       toRemove.forEach(p => {
-        if (!p.active || p._melted) return; // 溶けたアイスを誤って削除しない
+        if (!p.active || p._melted) return;
         this.erasedCounts[p._iceType]++;
+        clearedThisIter++;
         if (p._meltParts) { p._meltParts.forEach(o => o.destroy()); p._meltParts = null; }
         const idx = this.placedPieces.indexOf(p);
         if (idx >= 0) this.placedPieces.splice(idx, 1);
         p.destroy();
       });
+      this.checkFeverTime(clearedThisIter);
       this.maxChain = Math.max(this.maxChain, chainCount);
       found = true;
       chainCount++;
@@ -787,7 +890,6 @@ export class GravityGameScene extends Phaser.Scene {
 
     this.score += scoreDelta;
     this.scoreText.setText(`スコア: ${this.score}`);
-    this.checkFeverTime(scoreDelta);
     this.updateFeverGauge();
   }
 
@@ -833,7 +935,8 @@ export class GravityGameScene extends Phaser.Scene {
     const panel = this.add.graphics().setDepth(8);
     panel.fillStyle(0xFFFDF7,0.92); panel.fillRoundedRect(cx-120,y-34,240,72,16);
     panel.lineStyle(4,0xE85D75,0.9); panel.strokeRoundedRect(cx-120,y-34,240,72,16);
-    this.add.text(cx, y, 'GAME OVER', {
+    const gameOverLabel = (this.timeLimitOn && this.elapsedPlayMs >= 60000) ? 'ゲーム終了' : 'GAME OVER';
+    this.add.text(cx, y, gameOverLabel, {
       fontSize:'34px', fill:'#E85D75', fontStyle:'bold',
       stroke:'#FFFFFF', strokeThickness:6,
     }).setOrigin(0.5).setDepth(9).setShadow(2,2,'#F6A7C8',2,true,true);
@@ -845,7 +948,59 @@ export class GravityGameScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(9);
     });
     this.time.delayedCall(3000, () =>
-      goToResult(this.score, { maxChain:this.maxChain, erasedCounts:this.erasedCounts, mode:'gravity' }));
+      goToResult(this.score, { maxChain:this.maxChain, erasedCounts:this.erasedCounts, mode:'gravity', timeLimitOn:this.timeLimitOn }));
+  }
+
+  // ─── スコアポップアップ ───
+
+  showScorePopup(cx, cy, totalScore, chainCount, groupInfos) {
+    const isMulti  = groupInfos.length > 1;
+    const hasChain = chainCount > 1;
+
+    const _makeTxt = (x, y, text, fontSize, color, strokeW, shadowColor) => {
+      const t = this.add.text(x, y, text, {
+        fontSize, fill: color, fontStyle: 'bold',
+        stroke: '#FFFFFF', strokeThickness: strokeW,
+      }).setOrigin(0.5).setDepth(21);
+      t.setShadow(1, 1, shadowColor, 2, false, true);
+      return t;
+    };
+
+    // 複数グループ同時消去：各グループ近くに個別スコアを小さく表示
+    if (isMulti) {
+      groupInfos.forEach(g => {
+        const sign   = g.score >= 0 ? '+' : '';
+        const color  = g.score >= 0 ? '#C05A80' : '#4F9F8B';
+        const shadow = g.score >= 0 ? '#F6A7C8' : '#A8EDD8';
+        const t = _makeTxt(g.cx, g.cy - 8, `${sign}${g.score}`, '20px', color, 4, shadow);
+        this.tweens.add({
+          targets: t, y: '-=48', alpha: 0, duration: 850,
+          ease: 'Cubic.easeOut', onComplete: () => t.destroy(),
+        });
+      });
+    }
+
+    // 合計スコア（複数同時は大きく、単体は通常サイズ）
+    const sign      = totalScore >= 0 ? '+' : '';
+    const color     = totalScore >= 0 ? '#C05A80' : '#4F9F8B';
+    const shadow    = totalScore >= 0 ? '#F6A7C8' : '#A8EDD8';
+    const fontSize  = isMulti ? '40px' : '28px';
+    const strokeW   = isMulti ? 8 : 6;
+    const offsetY   = isMulti ? 28 : 10;
+
+    const targets = [];
+
+    if (hasChain) {
+      targets.push(_makeTxt(cx, cy - offsetY - 28, `${chainCount}連鎖！`,
+        '18px', '#F09040', 4, '#FFE4B8'));
+    }
+    targets.push(_makeTxt(cx, cy - offsetY, `${sign}${totalScore}`,
+      fontSize, color, strokeW, shadow));
+
+    this.tweens.add({
+      targets, y: '-=72', alpha: 0, duration: 1000,
+      ease: 'Cubic.easeOut', onComplete: () => targets.forEach(t => t.destroy()),
+    });
   }
 
   // ─── スコア / フィーバー ───
@@ -855,10 +1010,10 @@ export class GravityGameScene extends Phaser.Scene {
   }
   calcChainScore(base, chain) { return base + 3*(chain-1); }
 
-  checkFeverTime(delta) {
-    if (delta <= 0 || this.time.now < this.feverActiveUntil) return;
-    this.feverGaugeScore += delta;
-    if (this.feverGaugeScore >= 20) { this.feverGaugeScore = 0; this.startFeverTime(); }
+  checkFeverTime(clearedCount) {
+    if (clearedCount <= 0 || this.time.now < this.feverActiveUntil) return;
+    this.feverGaugeScore += clearedCount;
+    if (this.feverGaugeScore >= 12) { this.feverGaugeScore = 0; this.startFeverTime(); }
   }
 
   startFeverTime() {

@@ -6,6 +6,10 @@ export class GameScene extends Phaser.Scene {
         super({ key: 'GameScene' });
     }
 
+    init(data) {
+        this.timeLimitOn = data?.timeLimitOn ?? false;
+    }
+
     preload() {
         this.load.image('cone-image', 'js/state/game screen image/image.png');
         this.load.image('ice-azuki-source', 'assets/images/あずき.png');
@@ -718,7 +722,7 @@ export class GameScene extends Phaser.Scene {
         timePanel.lineStyle(3, 0xA9DDF7, 0.9);
         timePanel.strokeRoundedRect(14, 188, 206, 70, 12);
 
-        this.timeLabelText = this.add.text(28, 200, 'タイム', {
+        this.timeLabelText = this.add.text(28, 200, this.timeLimitOn ? '残り時間' : 'タイム', {
             fontSize: '18px',
             fill: '#5BA7D1',
             fontStyle: 'bold',
@@ -728,7 +732,7 @@ export class GameScene extends Phaser.Scene {
         this.timeLabelText.setShadow(2, 2, '#DDEBFF', 2, true, true);
         this.timeLabelText.setDepth(15);
 
-        this.elapsedTimeText = this.add.text(28, 221, '00:00', {
+        this.elapsedTimeText = this.add.text(28, 221, this.timeLimitOn ? '01:00' : '00:00', {
             fontSize: '30px',
             fill: '#7F6BAE',
             fontStyle: 'bold',
@@ -1491,11 +1495,17 @@ export class GameScene extends Phaser.Scene {
     updateElapsedTimeText() {
         if (!this.elapsedTimeText) return;
 
-        const elapsedSecond = Math.floor(this.elapsedPlayMs / 1000);
-        if (elapsedSecond === this.lastDisplayedElapsedSecond) return;
-
-        this.lastDisplayedElapsedSecond = elapsedSecond;
-        this.elapsedTimeText.setText(this.formatElapsedTime(elapsedSecond));
+        if (this.timeLimitOn) {
+            const remaining = Math.max(0, 60 - Math.floor(this.elapsedPlayMs / 1000));
+            const m = Math.floor(remaining / 60), s = remaining % 60;
+            this.elapsedTimeText.setText(`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`);
+            this.elapsedTimeText.setColor(remaining <= 10 ? '#E85D75' : '#7F6BAE');
+        } else {
+            const elapsedSecond = Math.floor(this.elapsedPlayMs / 1000);
+            if (elapsedSecond === this.lastDisplayedElapsedSecond) return;
+            this.lastDisplayedElapsedSecond = elapsedSecond;
+            this.elapsedTimeText.setText(this.formatElapsedTime(elapsedSecond));
+        }
     }
 
     formatElapsedTime(elapsedSecond) {
@@ -1642,6 +1652,7 @@ export class GameScene extends Phaser.Scene {
         }
 
         if (!this.gameStarted) return;
+        if (this.timeLimitOn && this.elapsedPlayMs >= 60000) { this.endGame(); return; }
         if (!this.fallingIceCream) return;
         this.updateHeldHorizontalMove(time);
 
@@ -3307,7 +3318,8 @@ export class GameScene extends Phaser.Scene {
         panel.strokeRoundedRect(x - 120, y - 34, 240, 72, 16);
         panel.setDepth(8);
 
-        this.add.text(x, y, 'GAME OVER', {
+        const gameOverLabel = (this.timeLimitOn && this.elapsedPlayMs >= 60000) ? 'ゲーム終了' : 'GAME OVER';
+        this.add.text(x, y, gameOverLabel, {
             fontSize: '34px',
             fill: '#E85D75',
             fontStyle: 'bold',
@@ -3326,7 +3338,7 @@ export class GameScene extends Phaser.Scene {
         });
 
         this.time.delayedCall(3000, () => {
-            goToResult(this.score, { maxChain: this.maxChain, erasedCounts: this.erasedCounts });
+            goToResult(this.score, { maxChain: this.maxChain, erasedCounts: this.erasedCounts, timeLimitOn: this.timeLimitOn });
         });
     }
 
