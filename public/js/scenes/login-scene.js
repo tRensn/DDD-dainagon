@@ -44,7 +44,7 @@ export class LoginScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => this.scene.restart());
+      .on('pointerdown', () => this.scene.stop());
 
     this._setupEvents();
 

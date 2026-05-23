@@ -612,9 +612,13 @@ export class GravityGameScene extends Phaser.Scene {
 
   _applyMelt(p) {
     p._melted = true;
-    // setCircle は使わない（ボディ再生成が上方向の跳ね飛びを引き起こすため）
+    // 静止化してから Body.scale で既存ボディを扁平化
+    // （setCircle はボディ再生成で上方向ジャンプが起きるため使わない）
     Phaser.Physics.Matter.Matter.Body.setVelocity(p.body, { x:0, y:0 });
+    Phaser.Physics.Matter.Matter.Body.setAngularVelocity(p.body, 0);
     Phaser.Physics.Matter.Matter.Body.setStatic(p.body, true);
+    // 視覚と同じ比率 (0.84, 0.52) でボディを扁平楕円に変形
+    Phaser.Physics.Matter.Matter.Body.scale(p.body, 0.84, 0.52);
     p._iceRadius = MELTED_RADIUS;
     p.setVisible(false);
 
@@ -640,7 +644,11 @@ export class GravityGameScene extends Phaser.Scene {
       if (p._meltParts) { p._meltParts.forEach(o => o.destroy()); p._meltParts = null; }
       p.setVisible(true);
       p._iceRadius = ICE_RADIUS;
-      Phaser.Physics.Matter.Matter.Body.setStatic(p.body, false);
+      // 静止中なのでボディ再生成でジャンプしない。扁平化を円に戻す
+      p.setCircle(ICE_RADIUS, {
+        friction:0.5, frictionStatic:0.6, restitution:0.12,
+        label:'ice', collisionFilter:{ category:0x0002, mask:0x0001|0x0002 },
+      });
       Phaser.Physics.Matter.Matter.Body.setVelocity(p.body, { x:0, y:0 });
       hasUnfrozen = true;
     }
