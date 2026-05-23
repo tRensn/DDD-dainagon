@@ -11,16 +11,16 @@ const ICE_ASSETS = [
 ];
 
 const SCATTERED_ICES = [
-  { key: 'home-ice-strawberry', x: 92, y: 96, size: 98, angle: -18 },
-  { key: 'home-ice-mint', x: 694, y: 82, size: 92, angle: 16 },
-  { key: 'home-ice-cookie', x: 138, y: 468, size: 110, angle: 12 },
-  { key: 'home-ice-azuki', x: 654, y: 478, size: 106, angle: -12 },
-  { key: 'home-ice-cone', x: 78, y: 316, size: 116, angle: 20 },
-  { key: 'home-ice-strawberry', x: 724, y: 318, size: 84, angle: -24 },
-  { key: 'home-ice-mint', x: 250, y: 120, size: 66, angle: 22 },
-  { key: 'home-ice-cookie', x: 548, y: 128, size: 70, angle: -15 },
-  { key: 'home-ice-azuki', x: 262, y: 510, size: 66, angle: -8 },
-  { key: 'home-ice-cone', x: 526, y: 516, size: 74, angle: 14 },
+  { key: 'home-ice-strawberry', x: 92, y: 96, size: 122, angle: -18 },
+  { key: 'home-ice-mint', x: 694, y: 82, size: 115, angle: 16 },
+  { key: 'home-ice-cookie', x: 138, y: 468, size: 137, angle: 12 },
+  { key: 'home-ice-azuki', x: 654, y: 478, size: 132, angle: -12 },
+  { key: 'home-ice-cone', x: 78, y: 316, size: 145, angle: 20 },
+  { key: 'home-ice-strawberry', x: 724, y: 318, size: 105, angle: -24 },
+  { key: 'home-ice-mint', x: 250, y: 120, size: 82, angle: 22 },
+  { key: 'home-ice-cookie', x: 548, y: 128, size: 87, angle: -15 },
+  { key: 'home-ice-azuki', x: 262, y: 510, size: 82, angle: -8 },
+  { key: 'home-ice-cone', x: 526, y: 516, size: 92, angle: 14 },
 ];
 
 const configEnv = window.DAINAGON_CONFIG ?? {};
@@ -132,7 +132,7 @@ export class HomeScene extends Phaser.Scene {
       .text(400, 150, 'あいすぱずる', {
         fontSize: '64px',
         color: '#e85d75',
-        fontFamily: "'Nunito', 'Comic Sans MS', cursive, sans-serif",
+        fontFamily: "'Fredoka', 'Comic Sans MS', cursive, sans-serif",
         fontStyle: 'bold italic',
         stroke: '#ffffff',
         strokeThickness: 9,
@@ -180,7 +180,7 @@ export class HomeScene extends Phaser.Scene {
     this.add.text(iconX + 29, iconY, playerName, {
       fontSize: '15px',
       color: '#7f6bae',
-      fontFamily: "'Nunito', sans-serif",
+      fontFamily: "'Fredoka', sans-serif",
       fontStyle: 'bold',
       stroke: '#ffffff',
       strokeThickness: 4,
@@ -232,7 +232,7 @@ export class HomeScene extends Phaser.Scene {
     const label = this.add.text(x, y, labelText, {
       fontSize: '14px',
       color: '#ffffff',
-      fontFamily: "'Nunito', sans-serif",
+      fontFamily: "'Fredoka', sans-serif",
       fontStyle: 'bold',
       stroke: '#5f5478',
       strokeThickness: 3,
@@ -352,7 +352,7 @@ export class HomeScene extends Phaser.Scene {
     this.add.text(cx, cy, label, {
       fontSize: '15px',
       color: '#5ba7d1',
-      fontFamily: "'Nunito', sans-serif",
+      fontFamily: "'Fredoka', sans-serif",
       fontStyle: 'bold',
       stroke: '#ffffff',
       strokeThickness: 3,
@@ -370,7 +370,7 @@ export class HomeScene extends Phaser.Scene {
       .text(400, 496, '', {
         fontSize: '18px',
         color: '#7f6bae',
-        fontFamily: "'Nunito', sans-serif",
+        fontFamily: "'Fredoka', sans-serif",
         fontStyle: 'bold',
         align: 'center',
         stroke: '#ffffff',
@@ -404,7 +404,7 @@ export class HomeScene extends Phaser.Scene {
       .text(centerX, centerY, label, {
         fontSize: label.length > 4 ? '40px' : '46px',
         color: '#7f6bae',
-        fontFamily: "'Nunito', 'Comic Sans MS', cursive, sans-serif",
+        fontFamily: "'Fredoka', 'Comic Sans MS', cursive, sans-serif",
         fontStyle: 'bold italic',
         stroke: '#ffffff',
         strokeThickness: 8,
