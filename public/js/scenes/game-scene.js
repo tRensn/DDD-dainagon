@@ -1652,7 +1652,7 @@ export class GameScene extends Phaser.Scene {
         }
 
         if (!this.gameStarted) return;
-        if (this.timeLimitOn && this.elapsedPlayMs >= 60000) { this.endGame(); return; }
+        if (this.timeLimitOn && this.elapsedPlayMs >= 60000) { this.endGame(true); return; }
         if (!this.fallingIceCream) return;
         this.updateHeldHorizontalMove(time);
 
@@ -1975,6 +1975,7 @@ export class GameScene extends Phaser.Scene {
             removed = false;
             let chainBaseScore = 0;
             const removeTargets = new Set();
+            const groupInfos = [];
             const visited = Array.from({ length: this.ROWS }, () => Array(this.COLS).fill(false));
 
             for (let row = 0; row < this.ROWS; row++) {
@@ -1984,17 +1985,26 @@ export class GameScene extends Phaser.Scene {
                     const connected = this.findConnectedIceCreams(row, col, visited);
 
                     if (connected.length >= 3) {
-                        chainBaseScore += this.calculateMatchScore(this.grid[row][col].type, connected.length);
+                        const groupScore = this.calculateMatchScore(this.grid[row][col].type, connected.length);
+                        chainBaseScore += groupScore;
 
                         connected.forEach((cell) => {
                             removeTargets.add(`${cell.row},${cell.col}`);
                         });
+
+                        const gcx = connected.reduce((s, c) => s + this.getCellCenterX(c.col), 0) / connected.length;
+                        const gcy = connected.reduce((s, c) => s + this.getCellCenterY(c.row), 0) / connected.length;
+                        groupInfos.push({ cx: gcx, cy: gcy, score: groupScore });
                     }
                 }
             }
 
             if (removeTargets.size > 0) {
-                scoreDelta += this.calculateChainScore(chainBaseScore, chainCount);
+                const iterScore = this.calculateChainScore(chainBaseScore, chainCount);
+                scoreDelta += iterScore;
+                const popupCx = groupInfos.reduce((s, g) => s + g.cx, 0) / groupInfos.length;
+                const popupCy = groupInfos.reduce((s, g) => s + g.cy, 0) / groupInfos.length;
+                this.showScorePopup(popupCx, popupCy, iterScore, chainCount, groupInfos);
                 this.playMatchEffect(removeTargets, chainCount);
 
                 removeTargets.forEach((target) => {
@@ -2032,6 +2042,7 @@ export class GameScene extends Phaser.Scene {
             removed = false;
             let chainBaseScore = 0;
             const removeTargets = new Set();
+            const groupInfos = [];
             const visited = new Set();
 
             for (let i = 0; i < this.tsumPieces.length; i++) {
@@ -2040,13 +2051,21 @@ export class GameScene extends Phaser.Scene {
 
                 const connected = this.findConnectedTsumPieces(i, visited);
                 if (connected.length >= 3) {
-                    chainBaseScore += this.calculateMatchScore(piece.type, connected.length);
+                    const groupScore = this.calculateMatchScore(piece.type, connected.length);
+                    chainBaseScore += groupScore;
                     connected.forEach((index) => removeTargets.add(index));
+                    const gcx = connected.reduce((s, idx) => s + this.tsumPieces[idx].x, 0) / connected.length;
+                    const gcy = connected.reduce((s, idx) => s + this.tsumPieces[idx].y, 0) / connected.length;
+                    groupInfos.push({ cx: gcx, cy: gcy, score: groupScore });
                 }
             }
 
             if (removeTargets.size > 0) {
-                scoreDelta += this.calculateChainScore(chainBaseScore, chainCount);
+                const iterScore = this.calculateChainScore(chainBaseScore, chainCount);
+                scoreDelta += iterScore;
+                const popupCx = groupInfos.reduce((s, g) => s + g.cx, 0) / groupInfos.length;
+                const popupCy = groupInfos.reduce((s, g) => s + g.cy, 0) / groupInfos.length;
+                this.showScorePopup(popupCx, popupCy, iterScore, chainCount, groupInfos);
                 this.playTsumMatchEffect([...removeTargets], chainCount);
 
                 [...removeTargets]
@@ -2127,8 +2146,6 @@ export class GameScene extends Phaser.Scene {
             this.createMatchedIceCreamPop(piece.x, piece.y, flavor.texture, delay);
             this.time.delayedCall(delay, () => this.createSparkleBurst(piece.x, piece.y));
         });
-
-        this.showChainText(chainCount);
     }
 
     nudgeTsumPileAfterRemoval() {
@@ -2297,7 +2314,52 @@ export class GameScene extends Phaser.Scene {
             });
         });
 
-        this.showChainText(chainCount);
+    }
+
+    showScorePopup(cx, cy, totalScore, chainCount, groupInfos) {
+        const isMulti  = groupInfos.length > 1;
+        const hasChain = chainCount > 1;
+
+        const _makeTxt = (x, y, text, fontSize, color, strokeW, shadowColor) => {
+            const t = this.add.text(x, y, text, {
+                fontSize, fill: color, fontStyle: 'bold',
+                stroke: '#FFFFFF', strokeThickness: strokeW,
+            }).setOrigin(0.5).setDepth(21);
+            t.setShadow(1, 1, shadowColor, 2, false, true);
+            return t;
+        };
+
+        if (isMulti) {
+            groupInfos.forEach(g => {
+                const sign   = g.score >= 0 ? '+' : '';
+                const color  = g.score >= 0 ? '#C05A80' : '#4F9F8B';
+                const shadow = g.score >= 0 ? '#F6A7C8' : '#A8EDD8';
+                const t = _makeTxt(g.cx, g.cy - 8, `${sign}${g.score}`, '20px', color, 4, shadow);
+                this.tweens.add({
+                    targets: t, y: t.y - 48, alpha: 0, duration: 850,
+                    ease: 'Cubic.easeOut', onComplete: () => t.destroy(),
+                });
+            });
+        }
+
+        const sign     = totalScore >= 0 ? '+' : '';
+        const color    = totalScore >= 0 ? '#C05A80' : '#4F9F8B';
+        const shadow   = totalScore >= 0 ? '#F6A7C8' : '#A8EDD8';
+        const fontSize = isMulti ? '40px' : '28px';
+        const strokeW  = isMulti ? 8 : 6;
+        const offsetY  = isMulti ? 28 : 10;
+
+        const targets = [];
+
+        if (hasChain) {
+            targets.push(_makeTxt(cx, cy - offsetY - 28, `${chainCount}連鎖！`, '18px', '#F09040', 4, '#FFE4B8'));
+        }
+        targets.push(_makeTxt(cx, cy - offsetY, `${sign}${totalScore}`, fontSize, color, strokeW, shadow));
+
+        this.tweens.add({
+            targets, y: '-=72', alpha: 0, duration: 1000,
+            ease: 'Cubic.easeOut', onComplete: () => targets.forEach(t => t.destroy()),
+        });
     }
 
     showChainText(chainCount) {
@@ -3297,9 +3359,10 @@ export class GameScene extends Phaser.Scene {
         });
     }
 
-    endGame() {
+    endGame(timeUp = false) {
         if (!this.gameActive) return;
 
+        this._timeUp = timeUp;
         this.gameActive = false;
         this.playGameOverBgm();
 
@@ -3338,7 +3401,7 @@ export class GameScene extends Phaser.Scene {
         });
 
         this.time.delayedCall(3000, () => {
-            goToResult(this.score, { maxChain: this.maxChain, erasedCounts: this.erasedCounts, timeLimitOn: this.timeLimitOn });
+            goToResult(this.score, { maxChain: this.maxChain, erasedCounts: this.erasedCounts, timeLimitOn: this.timeLimitOn, timeUp: this._timeUp });
         });
     }
 

@@ -58,6 +58,7 @@ export class ResultScene extends Phaser.Scene {
     this.totalErased  = this.erasedCounts.reduce((a, b) => a + b, 0);
     this.mode         = data?.mode ?? 'normal';
     this.timeLimitOn  = data?.timeLimitOn  ?? false;
+    this.timeUp       = data?.timeUp       ?? false;
   }
 
   create() {
@@ -328,17 +329,24 @@ export class ResultScene extends Phaser.Scene {
   // ===== スコア登録 & ランキング表示 =====
 
   async autoSaveAndRenderRanking(phL, phR) {
+    // 時間制限ONでゲームオーバー（時間切れ以外）の場合はランキング登録しない
+    const canSave = !this.timeLimitOn || this.timeUp;
     if (appState.playerSession) {
-      this.saveStatusText.setText('スコアを登録しています...');
-      try {
-        await this._api.saveScore(appState.playerSession.playerName, this.score, {
-          accessToken: appState.playerSession.accessToken,
-          gameId: `game-${Date.now()}`,
-        });
-        this.saveStatusText.setText('ランキングに登録しました！');
-      } catch (error) {
-        this.saveStatusText.setText(toFriendlyError(error));
-        this.saveStatusText.setColor('#fecaca');
+      if (!canSave) {
+        this.saveStatusText.setText('時間切れ以外の終了のため登録されません');
+        this.saveStatusText.setColor('#B090A8');
+      } else {
+        this.saveStatusText.setText('スコアを登録しています...');
+        try {
+          await this._api.saveScore(appState.playerSession.playerName, this.score, {
+            accessToken: appState.playerSession.accessToken,
+            gameId: `game-${Date.now()}`,
+          });
+          this.saveStatusText.setText('ランキングに登録しました！');
+        } catch (error) {
+          this.saveStatusText.setText(toFriendlyError(error));
+          this.saveStatusText.setColor('#fecaca');
+        }
       }
     }
     await Promise.all([
