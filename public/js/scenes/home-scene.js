@@ -1,4 +1,4 @@
-import { goToGame, goToHowTo, goToRanking } from '../app-init.js';
+import { goToHowTo, goToRanking } from '../app-init.js';
 import { appState, setPlayerSession } from '../state/app-state.js';
 import { BackendApi, createRankingStore } from '/src/backend/api.js';
 
@@ -221,7 +221,10 @@ export class HomeScene extends Phaser.Scene {
       .setDepth(5);
 
     this.createMenuButton(400, 250, 'あそびかた', () => goToHowTo());
-    this.createMenuButton(400, 340, 'スタート', () => goToGame());
+    this.createMenuButton(400, 340, 'スタート', () => {
+      this.scene.launch('ModeSelectScene');
+      this.scene.bringToTop('ModeSelectScene');
+    });
     this.createMenuButton(400, 430, 'ランキング', () => goToRanking());
   }
 
