@@ -8,8 +8,10 @@ import { LoginScene } from './scenes/login-scene.js';
 import { ResultScene } from './scenes/result-scene.js';
 import { HomeScene } from './scenes/home-scene.js';
 import { GameScene } from './scenes/game-scene.js';
+import { GravityGameScene } from './scenes/gravity-game-scene.js';
 import { HowToScene } from './scenes/how-to-scene.js';
 import { RankingScene } from './scenes/ranking-scene.js';
+import { ModeSelectScene } from './scenes/mode-select-scene.js';
 import { setMockSession } from './state/app-state.js';
 
 const sceneEntries = [
@@ -18,7 +20,9 @@ const sceneEntries = [
   ['HowToScene', HowToScene],
   ['RankingScene', RankingScene],
   ['GameScene', GameScene],
+  ['GravityGameScene', GravityGameScene],
   ['ResultScene', ResultScene],
+  ['ModeSelectScene', ModeSelectScene],
 ];
 
 // ===== Phaser ゲーム設定 =====
@@ -30,6 +34,10 @@ const gameConfig = {
   height: 600,
   transparent: true,
   dom: { createContainer: true },
+  physics: {
+    default: 'matter',
+    matter: { gravity: { y: 0 }, debug: false },
+  },
   scene: sceneEntries.map(([, sceneClass]) => sceneClass),
 };
 
@@ -66,7 +74,17 @@ export function goToGame() {
   game.scene.stop('HowToScene');
   game.scene.stop('RankingScene');
   game.scene.stop('ResultScene');
+  game.scene.stop('ModeSelectScene');
   game.scene.start('GameScene');
+}
+
+export function goToGravityGame() {
+  game.scene.stop('HomeScene');
+  game.scene.stop('HowToScene');
+  game.scene.stop('RankingScene');
+  game.scene.stop('ResultScene');
+  game.scene.stop('ModeSelectScene');
+  game.scene.start('GravityGameScene');
 }
 
 export function goToHowTo() {
