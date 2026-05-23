@@ -53,7 +53,7 @@ export class ModeSelectScene extends Phaser.Scene {
 
     this._modeCard(
       CX + 110, CY + 22,
-      '重力モード',
+      'ころころモード',
       '物理演算でころころ！\nアイスが転がる新感覚',
       [0xA9E8D1, 0xF8AFC9, 0xC78AA0, 0xF6F0DE],
       0xF0F8FF, 0xA9DDF7, '#5BA7D1',
