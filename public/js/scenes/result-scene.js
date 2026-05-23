@@ -1,6 +1,6 @@
 import { BackendApi, createRankingStore } from '/src/backend/api.js';
 import { appState } from '../state/app-state.js';
-import { goToGame, goToHome } from '../app-init.js';
+import { goToGame, goToGravityGame, goToHome } from '../app-init.js';
 
 const configEnv = window.DAINAGON_CONFIG ?? {};
 const backendApi = new BackendApi({
@@ -41,6 +41,7 @@ export class ResultScene extends Phaser.Scene {
     this.erasedCounts = data?.erasedCounts ?? [0, 0, 0, 0];
     // erasedCounts インデックス: 0=あずき, 1=クッキー, 2=ストロベリー, 3=チョコミント
     this.totalErased  = this.erasedCounts.reduce((a, b) => a + b, 0);
+    this.mode         = data?.mode ?? 'normal';
   }
 
   create() {
@@ -268,7 +269,7 @@ export class ResultScene extends Phaser.Scene {
       fontSize: '20px', color: '#ffffff', fontFamily: 'sans-serif', fontStyle: '700',
       backgroundColor: '#C05A00', padding: { x: 18, y: 9 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => goToGame());
+      .on('pointerdown', () => this.mode === 'gravity' ? goToGravityGame() : goToGame());
 
     this.add.text(bx + bw * 0.75, by, 'ホーム', {
       fontSize: '20px', color: '#ffffff', fontFamily: 'sans-serif', fontStyle: '700',

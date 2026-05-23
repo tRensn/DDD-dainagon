@@ -105,6 +105,7 @@ export function goToRanking() {
  */
 export function goToResult(score, stats = {}) {
   game.scene.stop('GameScene');
+  game.scene.stop('GravityGameScene');
   game.scene.start('ResultScene', { score, ...stats });
 }
 
