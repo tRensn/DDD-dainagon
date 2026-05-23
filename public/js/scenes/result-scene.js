@@ -1,10 +1,15 @@
-import { BackendApi, createRankingStore } from '/src/backend/api.js';
+import { BackendApi, createRankingStore, DEFAULT_GRAVITY_RANKING_TABLE } from '/src/backend/api.js';
 import { appState } from '../state/app-state.js';
 import { goToGame, goToGravityGame, goToHome } from '../app-init.js';
 
 const configEnv = window.DAINAGON_CONFIG ?? {};
-const backendApi = new BackendApi({
+const normalBackendApi = new BackendApi({
   rankingStore: createRankingStore(configEnv),
+});
+const gravityBackendApi = new BackendApi({
+  rankingStore: createRankingStore(configEnv, {
+    table: configEnv.SUPABASE_GRAVITY_RANKING_TABLE || DEFAULT_GRAVITY_RANKING_TABLE,
+  }),
 });
 
 // スコアに応じてアイスのスクープ数を決める閾値
@@ -45,6 +50,8 @@ export class ResultScene extends Phaser.Scene {
   }
 
   create() {
+    this._api = this.mode === 'gravity' ? gravityBackendApi : normalBackendApi;
+
     // 背景: クリーム色
     this.cameras.main.setBackgroundColor('#FFF5DC');
 
@@ -284,7 +291,7 @@ export class ResultScene extends Phaser.Scene {
     if (appState.playerSession) {
       this.saveStatusText.setText('スコアを登録しています...');
       try {
-        await backendApi.saveScore(appState.playerSession.playerName, this.score, {
+        await this._api.saveScore(appState.playerSession.playerName, this.score, {
           accessToken: appState.playerSession.accessToken,
           gameId: `game-${Date.now()}`,
         });
@@ -299,7 +306,7 @@ export class ResultScene extends Phaser.Scene {
 
   async renderRanking(placeholder) {
     try {
-      const ranking = await backendApi.getRanking();
+      const ranking = await this._api.getRanking();
       if (ranking.length === 0) {
         placeholder.setText('まだランキングがありません');
         return;
