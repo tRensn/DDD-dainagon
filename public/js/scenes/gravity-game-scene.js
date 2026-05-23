@@ -13,6 +13,14 @@ export class GravityGameScene extends Phaser.Scene {
 
   preload() {
     this.load.image('cone-image', 'js/state/game screen image/image.png');
+    if (!this.textures.exists('ice-azuki-source'))
+      this.load.image('ice-azuki-source',      'assets/images/あずき.png');
+    if (!this.textures.exists('ice-cookie-source'))
+      this.load.image('ice-cookie-source',     'assets/images/クッキーアンドクリーム.png');
+    if (!this.textures.exists('ice-strawberry-source'))
+      this.load.image('ice-strawberry-source', 'assets/images/ストロベリー.png');
+    if (!this.textures.exists('ice-mint-source'))
+      this.load.image('ice-mint-source',       'assets/images/チョコミント.png');
   }
 
   create() {
@@ -27,10 +35,10 @@ export class GravityGameScene extends Phaser.Scene {
     this.GAME_OVER_Y  = this.FRAME_Y + 64;
 
     this.ICE_TYPES = [
-      { name: '大納言あずき',          texture: 'grav-azuki',     score: 10 },
-      { name: 'クッキーアンドクリーム', texture: 'grav-cookie',    score:  5 },
-      { name: 'ストロベリー',           texture: 'grav-strawberry', score:  3 },
-      { name: 'チョコミント',           texture: 'grav-mint',      score: -5 },
+      { name: '大納言あずき',          texture: 'ice-azuki',      score: 10 },
+      { name: 'クッキーアンドクリーム', texture: 'ice-cookie',     score:  5 },
+      { name: 'ストロベリー',           texture: 'ice-strawberry', score:  3 },
+      { name: 'チョコミント',           texture: 'ice-mint',       score: -5 },
     ];
 
     this.score                      = 0;
@@ -53,7 +61,7 @@ export class GravityGameScene extends Phaser.Scene {
     this.feverRedrawTimer           = 0;
     this.lastPauseTime              = 0;
     this.lastFeverPauseTime         = 0;
-    this.meltTimeMs                 = 20000;
+    this.meltTimeMs                 = 8000;
     this.elapsedPlayMs              = 0;
     this.lastElapsedTimerUpdateTime = 0;
     this.lastDisplayedElapsedSecond = -1;
@@ -66,6 +74,7 @@ export class GravityGameScene extends Phaser.Scene {
     this.createWalls();
     this.createIceCreamFrame();
     this.createNextPreviewFrame();
+    this.createScoreGuideFrame();
     this.createUI();
     this.createFeverGauge();
     this.createPauseHint();
@@ -75,45 +84,35 @@ export class GravityGameScene extends Phaser.Scene {
     this.startCountdown();
   }
 
-  // ─── テクスチャ生成 ───
+  // ─── テクスチャ生成（ノーマルモードと同じ画像を使用） ───
 
   createIceCreamTextures() {
-    this._makeTex('grav-azuki', 0xC78AA0, 0x8A3450, g => {
-      g.fillStyle(0x7B2339, 1);
-      [[26,28,7,10],[42,23,6,9],[50,40,7,10],[31,48,5,8],[20,41,5,7]].forEach(([x,y,w,h]) => {
-        g.fillEllipse(x,y,w,h);
-        g.fillStyle(0xB95B72,0.9); g.fillEllipse(x-1,y-2,w*.35,h*.35);
-        g.fillStyle(0x7B2339,1);
-      });
-    });
-    this._makeTex('grav-cookie', 0xF6F0DE, 0x5B4B42, g => {
-      g.fillStyle(0x3F342F,1);
-      [[24,26,7],[46,31,9],[33,45,8],[51,49,6],[20,43,5]].forEach(([x,y,s]) => g.fillRect(x,y,s,s*.75));
-      g.fillStyle(0xD9CCB8,0.8); g.fillCircle(38,27,4); g.fillCircle(28,52,3);
-    });
-    this._makeTex('grav-strawberry', 0xF8AFC9, 0xD9577F, g => {
-      g.fillStyle(0xE84E7D,1);
-      [[26,27],[42,30],[32,43],[51,45],[21,47]].forEach(([x,y]) => g.fillEllipse(x,y,3,6));
-      g.fillStyle(0xFFF7FB,0.8); g.fillEllipse(30,24,16,8); g.fillEllipse(47,39,10,5);
-    });
-    this._makeTex('grav-mint', 0xA9E8D1, 0x4F9F8B, g => {
-      g.fillStyle(0x3F2E2A,1);
-      [[25,29,7],[46,26,6],[35,43,8],[52,47,5],[22,49,5]].forEach(([x,y,s]) => g.fillRect(x,y,s,s));
-      g.fillStyle(0xE8FFF6,0.75); g.fillEllipse(32,24,14,7); g.fillEllipse(48,39,9,5);
-    });
+    this._makeImageTex('ice-azuki',      'ice-azuki-source');
+    this._makeImageTex('ice-cookie',     'ice-cookie-source');
+    this._makeImageTex('ice-strawberry', 'ice-strawberry-source');
+    this._makeImageTex('ice-mint',       'ice-mint-source');
   }
 
-  _makeTex(key, base, outline, drawDetails) {
+  _makeImageTex(key, sourceKey) {
     if (this.textures.exists(key)) return;
-    const g = this.make.graphics({ x:0, y:0, add:false });
-    g.fillStyle(0x000000, 0.1); g.fillEllipse(39,60,42,12);
-    g.fillStyle(base,1); g.lineStyle(4,outline,1);
-    g.fillCircle(38,36,25); g.fillCircle(21,39,13); g.fillCircle(54,41,14);
-    g.fillCircle(38,52,14); g.strokeCircle(38,36,25);
-    g.fillStyle(0xFFFFFF,0.38); g.fillEllipse(29,25,18,9);
-    drawDetails(g);
-    g.generateTexture(key, TEX_SIZE, TEX_SIZE);
-    g.destroy();
+    const source = this.textures.get(sourceKey).getSourceImage();
+    const size = TEX_SIZE;
+    const padding = 3;
+    const cropSize = Math.min(source.width, source.height);
+    const cropX = Math.round((source.width  - cropSize) / 2);
+    const cropY = Math.round((source.height - cropSize) / 2);
+    const texture = this.textures.createCanvas(key, size, size);
+    const ctx = texture.getContext();
+    ctx.clearRect(0, 0, size, size);
+    ctx.drawImage(source, cropX, cropY, cropSize, cropSize, padding, padding, size - padding * 2, size - padding * 2);
+    // 黒背景を透過
+    const imageData = ctx.getImageData(0, 0, size, size);
+    const px = imageData.data;
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i+3] > 0 && px[i] < 42 && px[i+1] < 42 && px[i+2] < 42) px[i+3] = 0;
+    }
+    ctx.putImageData(imageData, 0, 0);
+    texture.refresh();
   }
 
   // ─── 背景 ───
@@ -259,6 +258,43 @@ export class GravityGameScene extends Phaser.Scene {
     g.lineStyle(8,0xF6A7C8,0.32);  g.strokeRoundedRect(px,py,ps,ps,10);
     g.lineStyle(5,0xF6A7C8,1);     g.strokeRoundedRect(px,py,ps,ps,10);
     g.lineStyle(2,0xFFF7FB,0.9);   g.strokeRoundedRect(px+3,py+3,ps-6,ps-6,8);
+  }
+
+  // ─── スコアガイドフレーム ───
+
+  createScoreGuideFrame() {
+    const px = this.FRAME_X + this.FRAME_WIDTH + 10;
+    const py = this.FRAME_Y + 18;
+    const ps = 118;
+    const x = px;
+    const y = py + ps + 12;
+    const width = this.scale.width - x - 10;
+    const height = 174;
+    const g = this.add.graphics().setDepth(14);
+    g.fillStyle(0xFFFDF7, 0.92);
+    g.fillRoundedRect(x, y, width, height, 10);
+    g.lineStyle(5, 0xA9DDF7, 0.95);
+    g.strokeRoundedRect(x, y, width, height, 10);
+    g.lineStyle(2, 0xFFFFFF, 0.9);
+    g.strokeRoundedRect(x + 3, y + 3, width - 6, height - 6, 8);
+
+    const lines = [
+      { text: '基礎点（3個消し）', size: '15px', color: '#7F6BAE', y: y + 25 },
+      { text: '大納言あずき  +10',   size: '14px', color: '#8A3450', y: y + 60 },
+      { text: 'クッキー&クリーム  +5', size: '13px', color: '#5B4B42', y: y + 90 },
+      { text: 'ストロベリー  +3',    size: '14px', color: '#D9577F', y: y + 120 },
+      { text: 'チョコミント  -5',    size: '14px', color: '#4F9F8B', y: y + 150 },
+    ];
+    lines.forEach(line =>
+      this.add.text(x + width / 2, line.y, line.text, {
+        fontFamily: "'Nunito', sans-serif",
+        fontSize: line.size,
+        fill: line.color,
+        fontStyle: 'bold',
+        stroke: '#FFFFFF',
+        strokeThickness: 3,
+      }).setOrigin(0.5).setDepth(15)
+    );
   }
 
   // ─── 物理壁 ───
@@ -628,17 +664,29 @@ export class GravityGameScene extends Phaser.Scene {
     p._iceRadius = MELTED_RADIUS;
     p.setVisible(false);
 
-    // ノーマルモードと同じ溶け見た目（潰れたアイス＋水たまりオーバーレイ）
-    const mx = p.x, my = p.y;
-    const overlay = this.add.image(mx, my + 13, this.ICE_TYPES[p._iceType].texture)
-      .setScale(0.84, 0.52).setAlpha(0.42).setTint(0xCFE8FF).setDepth(5);
-    const py = my + 24;
-    const shadow = this.add.ellipse(mx,     py+4, 56, 20, 0xA9DDF7, 0.35).setDepth(5);
-    const puddle = this.add.ellipse(mx,     py,   48, 17, 0xFFFFFF, 0.72).setDepth(5);
-    const dripL  = this.add.ellipse(mx-18,  py+7, 15,  9, 0xFFFFFF, 0.60).setDepth(5);
-    const dripR  = this.add.ellipse(mx+19,  py+8, 18, 11, 0xDDEBFF, 0.62).setDepth(5);
-    const shine  = this.add.ellipse(mx-8,   py-3, 18,  5, 0xFFF7FB, 0.85).setDepth(5);
-    p._meltParts = [overlay, shadow, puddle, dripL, dripR, shine];
+    // ノーマルモードの createMeltedIceCreamOverlay と同一の溶け見た目
+    const x = p.x, y = p.y;
+    const meltTint    = this.add.circle(x, y, 25, 0xDDEBFF, 0.12).setDepth(5);
+    const meltedShape = this.add.image(x, y + 12, this.ICE_TYPES[p._iceType].texture)
+      .setScale(0.84, 0.52).setAlpha(0.32).setTint(0xDDEBFF).setDepth(5);
+    const syrup = this.add.graphics().setDepth(6);
+    const puddleY = y + 29;
+    const shadow   = this.add.ellipse(x,     puddleY + 4, 48, 14, 0x7F6BAE, 0.10).setDepth(5);
+    const puddle   = this.add.ellipse(x,     puddleY,     44, 14, 0xFFFFFF, 0.46).setDepth(5);
+    const dripL    = this.add.ellipse(x - 15, puddleY + 6, 12,  7, 0xFFFFFF, 0.42).setDepth(5);
+    const dripR    = this.add.ellipse(x + 16, puddleY + 7, 14,  8, 0xDDEBFF, 0.44).setDepth(5);
+    const shine    = this.add.ellipse(x -  7, puddleY - 2, 14,  4, 0xFFF7FB, 0.56).setDepth(5);
+
+    syrup.fillStyle(0xFFFFFF, 0.42);
+    syrup.fillRoundedRect(x - 20, y - 3, 7, 22, 4);
+    syrup.fillRoundedRect(x -  1, y + 4, 6, 18, 4);
+    syrup.fillRoundedRect(x + 16, y - 5, 7, 24, 4);
+    syrup.fillStyle(0xA9DDF7, 0.3);
+    syrup.fillCircle(x - 17, y + 21, 5);
+    syrup.fillCircle(x + 19, y + 22, 6);
+    syrup.fillCircle(x +  2, y + 20, 4);
+
+    p._meltParts = [meltTint, meltedShape, syrup, shadow, puddle, dripL, dripR, shine];
   }
 
   unfreezeMeltedPieces() {
