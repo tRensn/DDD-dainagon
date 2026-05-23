@@ -4,6 +4,8 @@ const mockRankingByNamespace = new Map();
 const mockPlayers = new Map();
 const DEFAULT_RANKING_TABLE = 'rankings';
 const DEFAULT_GRAVITY_RANKING_TABLE = 'rankings_gravity';
+const DEFAULT_TIMED_RANKING_TABLE = 'rankings_timed';
+const DEFAULT_GRAVITY_TIMED_RANKING_TABLE = 'rankings_gravity_timed';
 const DEFAULT_PROFILE_TABLE = 'profiles';
 const AUTH_EMAIL_DOMAIN = 'dainagon.example.com';
 
@@ -377,7 +379,7 @@ export function createRankingStore(env = getRuntimeEnv(), { table } = {}) {
   return new MockRankingStore(resolvedTable);
 }
 
-export { DEFAULT_GRAVITY_RANKING_TABLE };
+export { DEFAULT_GRAVITY_RANKING_TABLE, DEFAULT_TIMED_RANKING_TABLE, DEFAULT_GRAVITY_TIMED_RANKING_TABLE };
 
 export function normalizeRankingScore(score) {
   if (!Number.isFinite(score)) {
