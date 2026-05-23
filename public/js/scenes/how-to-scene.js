@@ -27,14 +27,19 @@ export class HowToScene extends Phaser.Scene {
     panel.lineStyle(4, 0xf6a7c8, 1);
     panel.strokeRoundedRect(140, 150, 520, 300, 16);
 
-    this.add.text(185, 195, '・同じアイスを3つ以上そろえると消えるよ\n・アイスは時間がたつと、とけちゃうよ\n・とける前にたくさん消してスコアをのばそう', {
-      fontSize: '24px',
-      color: '#7f6bae',
-      fontFamily: "'Nunito', sans-serif",
-      lineSpacing: 18,
-      stroke: '#ffffff',
-      strokeThickness: 4,
-    });
+    this.add.text(
+      185,
+      190,
+      '・← → でアイスを動かそう\n・スペースキーで下に落とせるよ\n\t\t\t\t\t\t同じアイスを3つ以上そろえると消えるよ\n・アイスは時間がたつと、とけちゃうよ\n・とける前にたくさん消して\n  ハイスコアをめざそう！',
+      {
+        fontSize: '22px',
+        color: '#7f6bae',
+        fontFamily: "'Nunito', sans-serif",
+        lineSpacing: 12,
+        stroke: '#ffffff',
+        strokeThickness: 4,
+      },
+    );
 
     this.createBackButton(centerX, 515);
   }

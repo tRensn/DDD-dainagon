@@ -1,8 +1,9 @@
 import { GAME_PARAMETERS } from '../constants.js';
 
-const mockRanking = [];
+const mockRankingByNamespace = new Map();
 const mockPlayers = new Map();
 const DEFAULT_RANKING_TABLE = 'rankings';
+const DEFAULT_GRAVITY_RANKING_TABLE = 'rankings_gravity';
 const DEFAULT_PROFILE_TABLE = 'profiles';
 const AUTH_EMAIL_DOMAIN = 'dainagon.example.com';
 
@@ -102,23 +103,33 @@ export class BackendApi {
 }
 
 export class MockRankingStore {
+  constructor(namespace = 'default') {
+    this.namespace = namespace;
+    if (!mockRankingByNamespace.has(namespace)) {
+      mockRankingByNamespace.set(namespace, []);
+    }
+  }
+
+  get _data() { return mockRankingByNamespace.get(this.namespace); }
+
   saveScore(playerName, score) {
     const username = normalizeUserName(playerName);
-    const existingRanking = mockRanking.find((entry) => entry.playerName === username);
+    const data = this._data;
+    const existing = data.find((entry) => entry.playerName === username);
 
-    if (existingRanking) {
-      existingRanking.score = score;
+    if (existing) {
+      existing.score = score;
     } else {
-      mockRanking.push({ playerName: username, score });
+      data.push({ playerName: username, score });
     }
 
-    mockRanking.sort((a, b) => b.score - a.score);
+    data.sort((a, b) => b.score - a.score);
 
     return Promise.resolve();
   }
 
   getRanking() {
-    return Promise.resolve(mockRanking.slice(0, 10));
+    return Promise.resolve(this._data.slice(0, 10));
   }
 
   registerUser(playerName, password) {
@@ -202,6 +213,8 @@ export class SupabaseRankingStore {
       }),
     });
 
+    // テーブルが存在しない場合はスキップ（404 PGRST205）
+    if (isTableNotFound(updateResponse)) return;
     await assertSupabaseResponse(updateResponse);
 
     const updatedRows = await updateResponse.json();
@@ -222,6 +235,7 @@ export class SupabaseRankingStore {
       }),
     });
 
+    if (isTableNotFound(response)) return;
     await assertSupabaseResponse(response);
   }
 
@@ -236,6 +250,8 @@ export class SupabaseRankingStore {
       headers: this.createHeaders(),
     });
 
+    // テーブルが存在しない場合は空配列を返す（404 PGRST205）
+    if (isTableNotFound(response)) return [];
     await assertSupabaseResponse(response);
 
     const rows = await response.json();
@@ -344,21 +360,24 @@ export class SupabaseRankingStore {
   }
 }
 
-export function createRankingStore(env = getRuntimeEnv()) {
+export function createRankingStore(env = getRuntimeEnv(), { table } = {}) {
   const url = env.SUPABASE_URL;
   const anonKey = env.SUPABASE_ANON_KEY;
+  const resolvedTable = table || env.SUPABASE_RANKING_TABLE || DEFAULT_RANKING_TABLE;
 
   if (url && anonKey) {
     return new SupabaseRankingStore({
       url,
       anonKey,
-      table: env.SUPABASE_RANKING_TABLE || DEFAULT_RANKING_TABLE,
+      table: resolvedTable,
       profileTable: env.SUPABASE_PROFILE_TABLE || DEFAULT_PROFILE_TABLE,
     });
   }
 
-  return new MockRankingStore();
+  return new MockRankingStore(resolvedTable);
 }
+
+export { DEFAULT_GRAVITY_RANKING_TABLE };
 
 export function normalizeRankingScore(score) {
   if (!Number.isFinite(score)) {
@@ -377,7 +396,7 @@ export function normalizeRankingScore(score) {
 }
 
 export function resetMockRanking() {
-  mockRanking.length = 0;
+  mockRankingByNamespace.clear();
   mockPlayers.clear();
 }
 
@@ -425,6 +444,10 @@ async function assertSupabaseResponse(response) {
 
   const errorText = await response.text();
   throw new Error(`Supabase request failed: ${response.status} ${errorText}`);
+}
+
+function isTableNotFound(response) {
+  return response.status === 404;
 }
 
 function dedupeRankingRows(rows) {
