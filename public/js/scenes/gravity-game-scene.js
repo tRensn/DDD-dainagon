@@ -685,7 +685,7 @@ export class GravityGameScene extends Phaser.Scene {
       }
     }
 
-    if (this.timeLimitOn && this.elapsedPlayMs >= 60000) { this.endGame(); return; }
+    if (this.timeLimitOn && this.elapsedPlayMs >= 60000) { this.endGame(true); return; }
     if (this.isAnyPieceOverLine()) { this.endGame(); return; }
 
     // 転がってきたアイスの遅延マッチを定期検出（200ms間隔）
@@ -922,8 +922,9 @@ export class GravityGameScene extends Phaser.Scene {
     return false;
   }
 
-  endGame() {
+  endGame(timeUp = false) {
     if (!this.gameActive) return;
+    this._timeUp = timeUp;
     this.gameActive = false;
     this.matter.world.pause();
     this.playGameOverBgm();
@@ -948,7 +949,7 @@ export class GravityGameScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(9);
     });
     this.time.delayedCall(3000, () =>
-      goToResult(this.score, { maxChain:this.maxChain, erasedCounts:this.erasedCounts, mode:'gravity', timeLimitOn:this.timeLimitOn }));
+      goToResult(this.score, { maxChain:this.maxChain, erasedCounts:this.erasedCounts, mode:'gravity', timeLimitOn:this.timeLimitOn, timeUp:this._timeUp }));
   }
 
   // ─── スコアポップアップ ───
