@@ -12,6 +12,7 @@ export class GameScene extends Phaser.Scene {
         this.load.image('ice-cookie-source', 'assets/images/クッキーアンドクリーム.png');
         this.load.image('ice-strawberry-source', 'assets/images/ストロベリー.png');
         this.load.image('ice-mint-source', 'assets/images/チョコミント.png');
+        this.load.image('game-character-source', 'assets/images/ロックの画像倉庫/ゲーム画面キャラ.png');
         // 画像やアセットの読み込みはここで行います
     }
 
@@ -24,12 +25,14 @@ export class GameScene extends Phaser.Scene {
         // ゲーム枠表示
         this.initGame();
         this.createIceCreamFrame();
+        this.createGameCharacter();
         this.createNextIceCreamFrame();
         this.createScoreGuideFrame();
 
         // UI表示
         this.createUI();
         this.createFeverGauge();
+        this.createPauseButton();
         this.createPauseHint();
         this.createMobileControls();
 
@@ -214,6 +217,116 @@ export class GameScene extends Phaser.Scene {
 
         coneContext.drawImage(sourceCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
         coneTexture.refresh();
+    }
+
+    createGameCharacter() {
+        this.createWhiteBackgroundTransparentTexture('game-character-source', 'game-character-transparent');
+
+        const leftMargin = 2;
+        const gapFromFrame = 0;
+        const maxWidth = Math.max(120, this.iceCreamFrame.x - leftMargin - gapFromFrame);
+        const maxHeight = 250;
+        const sourceImage = this.textures.get('game-character-transparent').getSourceImage();
+        const scale = Math.min(maxWidth / sourceImage.width, maxHeight / sourceImage.height);
+        const displayWidth = sourceImage.width * scale;
+        const displayHeight = sourceImage.height * scale;
+        const maxX = Math.max(leftMargin, this.iceCreamFrame.x - displayWidth - gapFromFrame);
+        const centeredX = (this.iceCreamFrame.x - displayWidth) / 2;
+        const x = Phaser.Math.Clamp(centeredX, leftMargin, maxX);
+        const y = this.scale.height - displayHeight - 2;
+        const character = this.add.image(x, y, 'game-character-transparent');
+
+        character.setOrigin(0, 0);
+        character.setDisplaySize(displayWidth, displayHeight);
+        character.setDepth(12);
+        this.gameCharacter = character;
+    }
+
+    createWhiteBackgroundTransparentTexture(sourceKey, textureKey) {
+        if (this.textures.exists(textureKey)) {
+            this.textures.remove(textureKey);
+        }
+
+        const sourceImage = this.textures.get(sourceKey).getSourceImage();
+        const sourceCanvas = document.createElement('canvas');
+        sourceCanvas.width = sourceImage.width;
+        sourceCanvas.height = sourceImage.height;
+
+        const sourceContext = sourceCanvas.getContext('2d');
+        sourceContext.drawImage(sourceImage, 0, 0);
+
+        const imageData = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+        const pixels = imageData.data;
+        const width = sourceCanvas.width;
+        const height = sourceCanvas.height;
+        const visited = new Uint8Array(width * height);
+        const stack = [];
+
+        const isBackgroundWhite = (pixelIndex) => {
+            const index = pixelIndex * 4;
+            const red = pixels[index];
+            const green = pixels[index + 1];
+            const blue = pixels[index + 2];
+            const alpha = pixels[index + 3];
+            return alpha > 0 && red > 238 && green > 238 && blue > 238 && Math.max(red, green, blue) - Math.min(red, green, blue) < 28;
+        };
+
+        const pushIfWhite = (x, y) => {
+            if (x < 0 || y < 0 || x >= width || y >= height) return;
+            const pixelIndex = y * width + x;
+            if (visited[pixelIndex] || !isBackgroundWhite(pixelIndex)) return;
+            visited[pixelIndex] = 1;
+            stack.push(pixelIndex);
+        };
+
+        for (let x = 0; x < width; x++) {
+            pushIfWhite(x, 0);
+            pushIfWhite(x, height - 1);
+        }
+        for (let y = 0; y < height; y++) {
+            pushIfWhite(0, y);
+            pushIfWhite(width - 1, y);
+        }
+
+        while (stack.length > 0) {
+            const pixelIndex = stack.pop();
+            const x = pixelIndex % width;
+            const y = Math.floor(pixelIndex / width);
+            pixels[pixelIndex * 4 + 3] = 0;
+            pushIfWhite(x + 1, y);
+            pushIfWhite(x - 1, y);
+            pushIfWhite(x, y + 1);
+            pushIfWhite(x, y - 1);
+        }
+
+        let minX = width;
+        let minY = height;
+        let maxX = 0;
+        let maxY = 0;
+        for (let index = 0; index < pixels.length; index += 4) {
+            if (pixels[index + 3] === 0) continue;
+            const pixelIndex = index / 4;
+            const x = pixelIndex % width;
+            const y = Math.floor(pixelIndex / width);
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+        }
+
+        sourceContext.putImageData(imageData, 0, 0);
+
+        const padding = 4;
+        const cropX = Math.max(0, minX - padding);
+        const cropY = Math.max(0, minY - padding);
+        const cropWidth = Math.min(width - cropX, maxX - minX + padding * 2);
+        const cropHeight = Math.min(height - cropY, maxY - minY + padding * 2);
+        const transparentTexture = this.textures.createCanvas(textureKey, cropWidth, cropHeight);
+        const transparentContext = transparentTexture.getContext();
+
+        transparentContext.clearRect(0, 0, cropWidth, cropHeight);
+        transparentContext.drawImage(sourceCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+        transparentTexture.refresh();
     }
 
     createNextIceCreamFrame() {
@@ -435,6 +548,15 @@ export class GameScene extends Phaser.Scene {
         this.gameStarted = false;
         this.canRetry = false;
         this.isPaused = false;
+        this.countdownEvents = [];
+        this.heldMoveDirection = 0;
+        this.lastAutoMoveAt = 0;
+        this.autoMoveStartDelayMs = 260;
+        this.autoMoveIntervalMs = 110;
+        this.mobileAutoMoveStartDelayMs = 260;
+        this.mobileAutoMoveIntervalMs = 110;
+        this.mobileHoldMoveEvent = null;
+        this.meltAnimationMs = 760;
         this.fallingIceCream = null;
         this.nextIceCreamTypes = [
             Phaser.Math.Between(0, this.ICE_CREAM_TYPES.length - 1),
@@ -671,22 +793,62 @@ export class GameScene extends Phaser.Scene {
     }
 
     createPauseHint() {
-        this.add.text(660, 565, 'escで一時停止', {
-            fontSize: '13px',
-            fill: '#9A8CC2',
+    }
+
+    createPauseButton() {
+        const x = 20;
+        const y = 18;
+        const width = 140;
+        const height = 42;
+        const radius = 12;
+        const button = this.add.graphics();
+
+        button.fillStyle(0xFFFDF7, 0.94);
+        button.fillRoundedRect(x, y, width, height, radius);
+        button.lineStyle(4, 0xF6A7C8, 1);
+        button.strokeRoundedRect(x, y, width, height, radius);
+        button.lineStyle(2, 0xFFF7FB, 0.9);
+        button.strokeRoundedRect(x + 3, y + 3, width - 6, height - 6, radius - 3);
+        button.setDepth(18);
+
+        const label = this.add.text(x + width / 2, y + height / 2, 'PAUSE（esc）', {
+            fontSize: '17px',
+            fill: '#7F6BAE',
             fontStyle: 'bold',
             stroke: '#FFFFFF',
-            strokeThickness: 3
-        }).setDepth(15);
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(19);
+
+        const hitArea = this.add.zone(x + width / 2, y + height / 2, width, height);
+        hitArea.setDepth(20);
+        hitArea.setInteractive({ useHandCursor: true });
+        hitArea.on('pointerdown', (pointer, localX, localY, event) => {
+            if (event) event.stopPropagation();
+            if (!this.gameActive || this.canRetry) return;
+
+            button.setAlpha(0.76);
+            label.setScale(0.96);
+            this.togglePause();
+        });
+        hitArea.on('pointerup', () => {
+            button.setAlpha(1);
+            label.setScale(1);
+        });
+        hitArea.on('pointerout', () => {
+            button.setAlpha(1);
+            label.setScale(1);
+        });
+
+        this.pauseButton = { button, label, hitArea };
     }
 
     createMobileControls() {
         const buttons = [
-            { x: 612, y: 520, radius: 30, label: '<', fontSize: '30px', action: () => this.moveFallingIceCream(-1) },
-            { x: 684, y: 520, radius: 30, label: '>', fontSize: '30px', action: () => this.moveFallingIceCream(1) },
+            { x: 632, y: 488, radius: 28, label: '<', fontSize: '29px', holdDirection: -1, action: () => this.moveFallingIceCream(-1) },
+            { x: 732, y: 488, radius: 28, label: '>', fontSize: '29px', holdDirection: 1, action: () => this.moveFallingIceCream(1) },
             {
-                x: 748,
-                y: 520,
+                x: 682,
+                y: 552,
                 radius: 34,
                 label: 'DROP',
                 fontSize: '16px',
@@ -720,20 +882,43 @@ export class GameScene extends Phaser.Scene {
                 base.setScale(0.92);
                 label.setScale(0.92);
                 button.action();
+                if (button.holdDirection) {
+                    this.startMobileHoldMove(button.holdDirection);
+                }
             });
 
             base.on('pointerup', () => {
                 base.setScale(1);
                 label.setScale(1);
+                this.stopMobileHoldMove();
             });
 
             base.on('pointerout', () => {
                 base.setScale(1);
                 label.setScale(1);
+                this.stopMobileHoldMove();
             });
 
             return { base, glow, label };
         });
+    }
+
+    startMobileHoldMove(direction) {
+        this.stopMobileHoldMove();
+        const delayedStart = this.time.delayedCall(this.mobileAutoMoveStartDelayMs, () => {
+            this.mobileHoldMoveEvent = this.time.addEvent({
+                delay: this.mobileAutoMoveIntervalMs,
+                loop: true,
+                callback: () => this.moveFallingIceCream(direction)
+            });
+        });
+        this.mobileHoldMoveEvent = delayedStart;
+    }
+
+    stopMobileHoldMove() {
+        if (!this.mobileHoldMoveEvent) return;
+        this.mobileHoldMoveEvent.remove(false);
+        this.mobileHoldMoveEvent = null;
     }
 
     updateFeverGauge() {
@@ -1020,11 +1205,23 @@ export class GameScene extends Phaser.Scene {
 
             if (event.type === 'keydown') {
                 if (isLeft) {
-                    this.moveFallingIceCream(-1);
+                    this.heldMoveDirection = -1;
+                    if (!event.repeat) {
+                        this.lastAutoMoveAt = this.time.now + this.autoMoveStartDelayMs;
+                        this.moveFallingIceCream(-1);
+                    }
                 } else if (isRight) {
-                    this.moveFallingIceCream(1);
+                    this.heldMoveDirection = 1;
+                    if (!event.repeat) {
+                        this.lastAutoMoveAt = this.time.now + this.autoMoveStartDelayMs;
+                        this.moveFallingIceCream(1);
+                    }
                 } else if (isSpace && !event.repeat && !this.isPaused && this.gameStarted && this.fallingIceCream) {
                     this.hardDropIceCream();
+                }
+            } else if (event.type === 'keyup') {
+                if ((isLeft && this.heldMoveDirection === -1) || (isRight && this.heldMoveDirection === 1)) {
+                    this.heldMoveDirection = 0;
                 }
             }
 
@@ -1039,9 +1236,13 @@ export class GameScene extends Phaser.Scene {
             document.removeEventListener('keydown', this.browserKeyBlocker, { capture: true });
             this.browserKeyBlocker = null;
             this.inputSetupDone = false;
+            this.heldMoveDirection = 0;
+            this.stopMobileHoldMove();
         });
 
         this.input.keyboard.on('keydown-LEFT', () => {
+            this.heldMoveDirection = -1;
+            this.lastAutoMoveAt = this.time.now + this.autoMoveStartDelayMs;
             this.moveFallingIceCream(-1);
         });
 
@@ -1052,10 +1253,14 @@ export class GameScene extends Phaser.Scene {
         });
         // 左右操作
         this.input.keyboard.on('keydown-LEFT', () => {
+            this.heldMoveDirection = -1;
+            this.lastAutoMoveAt = this.time.now + this.autoMoveStartDelayMs;
             this.moveFallingIceCream(-1);
         });
 
         this.input.keyboard.on('keydown-RIGHT', () => {
+            this.heldMoveDirection = 1;
+            this.lastAutoMoveAt = this.time.now + this.autoMoveStartDelayMs;
             this.moveFallingIceCream(1);
         });
 
@@ -1067,12 +1272,6 @@ export class GameScene extends Phaser.Scene {
         });
 
         this.input.keyboard.on('keydown-ENTER', () => {
-            if (this.isPaused && this.gameActive && this.gameStarted && !this.canRetry) {
-                this.prepareSceneRestart();
-                this.scene.restart();
-                return;
-            }
-
             if (this.canRetry) {
                 this.prepareSceneRestart();
                 this.scene.restart();
@@ -1080,7 +1279,7 @@ export class GameScene extends Phaser.Scene {
         });
 
         this.input.keyboard.on('keydown-ESC', () => {
-            if (this.gameActive && this.gameStarted && !this.canRetry) {
+            if (this.gameActive && !this.canRetry) {
                 this.togglePause();
             }
         });
@@ -1162,6 +1361,20 @@ export class GameScene extends Phaser.Scene {
         } else {
             this.hidePauseOverlay();
         }
+        this.setCountdownPaused(this.isPaused);
+        this.updatePauseButtonLabel();
+    }
+
+    updatePauseButtonLabel() {
+        if (!this.pauseButton) return;
+        this.pauseButton.label.setText(this.isPaused ? 'RESUME' : 'PAUSE（esc）');
+    }
+
+    setCountdownPaused(paused) {
+        if (!this.countdownEvents) return;
+        this.countdownEvents.forEach((event) => {
+            if (event) event.paused = paused;
+        });
     }
 
     showPauseOverlay() {
@@ -1172,9 +1385,9 @@ export class GameScene extends Phaser.Scene {
         const panel = this.add.graphics();
 
         panel.fillStyle(0xFFFDF7, 0.88);
-        panel.fillRoundedRect(x - 115, y - 42, 230, 92, 14);
+        panel.fillRoundedRect(x - 125, y - 62, 250, 246, 16);
         panel.lineStyle(4, 0xA9DDF7, 0.9);
-        panel.strokeRoundedRect(x - 115, y - 42, 230, 92, 14);
+        panel.strokeRoundedRect(x - 125, y - 62, 250, 246, 16);
         panel.setDepth(13);
 
         const text = this.add.text(x, y - 12, 'PAUSE', {
@@ -1185,15 +1398,58 @@ export class GameScene extends Phaser.Scene {
             strokeThickness: 6
         }).setOrigin(0.5).setDepth(14).setShadow(2, 2, '#A9DDF7', 2, true, true);
 
-        const retryText = this.add.text(x, y + 28, 'Enterでリトライ', {
-            fontSize: '19px',
-            fill: '#E85D75',
+        const retryButton = this.createPauseMenuButton(x, y + 42, 176, 40, 'リトライ', () => {
+            this.prepareSceneRestart();
+            this.scene.restart();
+        });
+        const restartButton = this.createPauseMenuButton(x, y + 88, 176, 40, 'リスタート', () => {
+            this.togglePause();
+        });
+        const homeButton = this.createPauseMenuButton(x, y + 134, 176, 40, 'ホーム画面へ', () => {
+            this.prepareSceneRestart();
+            this.scene.start('HomeScene');
+        });
+
+        this.pauseOverlay = { panel, text, buttons: [retryButton, homeButton, restartButton] };
+    }
+
+    createPauseMenuButton(x, y, width, height, labelText, action) {
+        const base = this.add.graphics();
+        base.fillStyle(0xFFFFFF, 0.96);
+        base.fillRoundedRect(x - width / 2, y - height / 2, width, height, 12);
+        base.lineStyle(4, 0xF6A7C8, 1);
+        base.strokeRoundedRect(x - width / 2, y - height / 2, width, height, 12);
+        base.lineStyle(2, 0xFFF7FB, 0.95);
+        base.strokeRoundedRect(x - width / 2 + 3, y - height / 2 + 3, width - 6, height - 6, 9);
+        base.setDepth(14);
+
+        const label = this.add.text(x, y, labelText, {
+            fontSize: '20px',
+            fill: '#7F6BAE',
             fontStyle: 'bold',
             stroke: '#FFFFFF',
             strokeThickness: 4
-        }).setOrigin(0.5).setDepth(14).setShadow(2, 2, '#F6A7C8', 2, true, true);
+        }).setOrigin(0.5).setDepth(15);
 
-        this.pauseOverlay = { panel, text, retryText };
+        const hitArea = this.add.zone(x, y, width, height);
+        hitArea.setDepth(16);
+        hitArea.setInteractive({ useHandCursor: true });
+        hitArea.on('pointerdown', (pointer, localX, localY, event) => {
+            if (event) event.stopPropagation();
+            base.setAlpha(0.72);
+            label.setScale(0.95);
+            action();
+        });
+        hitArea.on('pointerup', () => {
+            base.setAlpha(1);
+            label.setScale(1);
+        });
+        hitArea.on('pointerout', () => {
+            base.setAlpha(1);
+            label.setScale(1);
+        });
+
+        return { base, label, hitArea };
     }
 
     hidePauseOverlay() {
@@ -1201,7 +1457,13 @@ export class GameScene extends Phaser.Scene {
 
         this.pauseOverlay.panel.destroy();
         this.pauseOverlay.text.destroy();
-        this.pauseOverlay.retryText.destroy();
+        if (this.pauseOverlay.buttons) {
+            this.pauseOverlay.buttons.forEach((button) => {
+                button.base.destroy();
+                button.label.destroy();
+                button.hitArea.destroy();
+            });
+        }
         this.pauseOverlay = null;
     }
 
@@ -1246,26 +1508,30 @@ export class GameScene extends Phaser.Scene {
     startCountdown() {
         const counts = ['3', '2', '1'];
         const startDelay = 1000;
+        this.countdownEvents = [];
 
         counts.forEach((count, index) => {
-            this.time.delayedCall(startDelay + index * 700, () => {
+            const event = this.time.delayedCall(startDelay + index * 700, () => {
                 this.showCountdownText(count);
                 this.playCountdownSe(index);
             });
+            this.countdownEvents.push(event);
         });
 
-        this.time.delayedCall(startDelay + counts.length * 700, () => {
+        const startTextEvent = this.time.delayedCall(startDelay + counts.length * 700, () => {
             this.showCountdownText('START!');
             this.playCountdownStartSe();
         });
+        this.countdownEvents.push(startTextEvent);
 
-        this.time.delayedCall(startDelay + counts.length * 700 + 500, () => {
+        const startGameEvent = this.time.delayedCall(startDelay + counts.length * 700 + 500, () => {
             this.gameStarted = true;
             this.elapsedPlayMs = 0;
             this.lastElapsedTimerUpdateTime = this.time.now;
             this.updateElapsedTimeText();
             this.spawnNextIceCream();
         });
+        this.countdownEvents.push(startGameEvent);
     }
 
     showCountdownText(label) {
@@ -1377,6 +1643,7 @@ export class GameScene extends Phaser.Scene {
 
         if (!this.gameStarted) return;
         if (!this.fallingIceCream) return;
+        this.updateHeldHorizontalMove(time);
 
         if (this.useTsumPhysics) {
             this.updateFallingTsum(time, delta);
@@ -1394,6 +1661,15 @@ export class GameScene extends Phaser.Scene {
 
         this.updateFallingSpritePosition();
         this.updateDropMarker();
+    }
+
+    updateHeldHorizontalMove(time) {
+        if (this.heldMoveDirection === 0) return;
+        if (this.isPaused || !this.gameStarted || !this.fallingIceCream) return;
+        if (time < this.lastAutoMoveAt) return;
+
+        this.moveFallingIceCream(this.heldMoveDirection);
+        this.lastAutoMoveAt = time + this.autoMoveIntervalMs;
     }
 
     fixIceCreamToGrid() {
@@ -1894,6 +2170,7 @@ export class GameScene extends Phaser.Scene {
                 if (!piece.melted) continue;
 
                 piece.melted = false;
+                piece.meltedAt = 0;
                 piece.placedAt = this.time.now;
                 piece.feverFrozenUntil = this.feverActiveUntil;
                 hasFrozenIceCreams = true;
@@ -1913,6 +2190,7 @@ export class GameScene extends Phaser.Scene {
                 if (cell === null || !cell.melted) continue;
 
                 cell.melted = false;
+                cell.meltedAt = 0;
                 cell.placedAt = this.time.now;
                 cell.feverFrozenUntil = this.feverActiveUntil;
                 hasFrozenIceCreams = true;
@@ -2149,6 +2427,7 @@ export class GameScene extends Phaser.Scene {
                 }
 
                 piece.melted = true;
+                piece.meltedAt = time;
                 shouldSync = true;
             }
 
@@ -2172,6 +2451,7 @@ export class GameScene extends Phaser.Scene {
                 }
 
                 cell.melted = true;
+                cell.meltedAt = time;
                 shouldRedraw = true;
             }
         }
@@ -2208,6 +2488,7 @@ export class GameScene extends Phaser.Scene {
                 if (!piece.feverFrozenUntil || time < this.feverActiveUntil) continue;
 
                 piece.melted = true;
+                piece.meltedAt = time;
                 piece.feverFrozenUntil = 0;
                 shouldSync = true;
             }
@@ -2227,6 +2508,7 @@ export class GameScene extends Phaser.Scene {
                 }
 
                 cell.melted = true;
+                cell.meltedAt = time;
                 cell.feverFrozenUntil = 0;
                 shouldRedraw = true;
             }
@@ -2656,10 +2938,20 @@ export class GameScene extends Phaser.Scene {
                     sprite.setScale(this.ICE_SCALE);
                     sprite.setDepth(4);
                     if (cell.melted) {
-                        sprite.setAlpha(0.46);
+                        const meltAge = cell.meltedAt ? this.time.now - cell.meltedAt : this.meltAnimationMs;
+                        const animateMelt = meltAge >= 0 && meltAge < this.meltAnimationMs;
+                        sprite.setAlpha(animateMelt ? 0.92 : 0.46);
                         sprite.setTint(0xCFE8FF);
                         sprite.setScale(this.ICE_SCALE);
-                        this.createMeltedIceCreamOverlay(this.getCellCenterX(col), this.getCellCenterY(row), flavor.texture);
+                        if (animateMelt) {
+                            this.tweens.add({
+                                targets: sprite,
+                                alpha: 0.46,
+                                duration: this.meltAnimationMs,
+                                ease: 'Sine.easeInOut'
+                            });
+                        }
+                        this.createMeltedIceCreamOverlay(this.getCellCenterX(col), this.getCellCenterY(row), flavor.texture, animateMelt);
                     } else if (this.isFeverFrozenCell(cell, this.time.now)) {
                         sprite.setTint(0xE8F8FF);
                         this.createFrozenIceCreamOverlay(this.getCellCenterX(col), this.getCellCenterY(row));
@@ -2670,7 +2962,7 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
-    createMeltedIceCreamOverlay(x, y, texture) {
+    createMeltedIceCreamOverlay(x, y, texture, animate = false) {
         const meltTint = this.add.circle(x, y, 25, 0xDDEBFF, 0.12);
         const meltedShape = this.add.image(x, y + 12, texture);
         const syrup = this.add.graphics();
@@ -2680,6 +2972,11 @@ export class GameScene extends Phaser.Scene {
         const dripLeft = this.add.ellipse(x - 15, puddleY + 6, 12, 7, 0xFFFFFF, 0.42);
         const dripRight = this.add.ellipse(x + 16, puddleY + 7, 14, 8, 0xDDEBFF, 0.44);
         const shine = this.add.ellipse(x - 7, puddleY - 2, 14, 4, 0xFFF7FB, 0.56);
+        const flowingDrops = [
+            this.add.ellipse(x - 18, y + 5, 7, 13, 0xFFFFFF, 0.38),
+            this.add.ellipse(x + 2, y + 11, 6, 12, 0xDDEBFF, 0.34),
+            this.add.ellipse(x + 18, y + 3, 7, 14, 0xFFFFFF, 0.36)
+        ];
 
         syrup.fillStyle(0xFFFFFF, 0.42);
         syrup.fillRoundedRect(x - 20, y - 3, 7, 22, 4);
@@ -2694,11 +2991,116 @@ export class GameScene extends Phaser.Scene {
         meltedShape.setAlpha(0.32);
         meltedShape.setTint(0xDDEBFF);
 
-        [meltTint, meltedShape, syrup, shadow, puddle, dripLeft, dripRight, shine].forEach((part) => {
+        [meltTint, meltedShape, syrup, shadow, puddle, dripLeft, dripRight, shine, ...flowingDrops].forEach((part) => {
             part.setDepth(5);
         });
         syrup.setDepth(6);
-        this.placedSprites.push(meltTint, meltedShape, syrup, shadow, puddle, dripLeft, dripRight, shine);
+        flowingDrops.forEach((drop) => drop.setDepth(7));
+
+        if (animate) {
+            [meltTint, meltedShape, syrup, shadow, puddle, dripLeft, dripRight, shine, ...flowingDrops].forEach((part) => {
+                part.setAlpha(0);
+            });
+            meltedShape.setY(y + 4);
+            meltedShape.setScale(this.ICE_SCALE, this.ICE_SCALE);
+            puddle.setScale(0.25, 0.35);
+            dripLeft.setScale(0.2, 0.25);
+            dripRight.setScale(0.2, 0.25);
+            shine.setScale(0.25, 0.4);
+            shadow.setScale(0.2, 0.35);
+            flowingDrops.forEach((drop) => drop.setScale(0.25, 0.2));
+
+            this.tweens.add({
+                targets: [meltTint, syrup, shadow, puddle, dripLeft, dripRight, shine, ...flowingDrops],
+                alpha: { from: 0, to: 1 },
+                duration: this.meltAnimationMs,
+                ease: 'Sine.easeInOut'
+            });
+            this.tweens.add({
+                targets: meltedShape,
+                y: y + 12,
+                alpha: 0.32,
+                scaleX: this.MELTED_ICE_SCALE_X,
+                scaleY: this.MELTED_ICE_SCALE_Y,
+                duration: this.meltAnimationMs,
+                ease: 'Sine.easeInOut'
+            });
+            this.tweens.add({
+                targets: [puddle, dripLeft, dripRight, shine, shadow],
+                scaleX: 1,
+                scaleY: 1,
+                duration: this.meltAnimationMs,
+                ease: 'Back.easeOut'
+            });
+            this.tweens.add({
+                targets: flowingDrops,
+                scaleX: 1,
+                scaleY: 1,
+                duration: this.meltAnimationMs,
+                ease: 'Back.easeOut'
+            });
+        }
+
+        this.tweens.add({
+            targets: meltTint,
+            scale: 1.18,
+            alpha: 0.22,
+            delay: animate ? this.meltAnimationMs : 0,
+            duration: 1700,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+        this.tweens.add({
+            targets: meltedShape,
+            y: y + 16,
+            scaleX: this.MELTED_ICE_SCALE_X * 1.08,
+            scaleY: this.MELTED_ICE_SCALE_Y * 0.92,
+            delay: animate ? this.meltAnimationMs : 0,
+            duration: 1900,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+        this.tweens.add({
+            targets: [puddle, shadow],
+            scaleX: 1.16,
+            scaleY: 0.9,
+            delay: animate ? this.meltAnimationMs : 0,
+            duration: 1750,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+        this.tweens.add({
+            targets: [dripLeft, dripRight, shine],
+            y: '+=4',
+            scaleX: 1.1,
+            delay: animate ? this.meltAnimationMs : 0,
+            duration: 1450,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+        flowingDrops.forEach((drop, index) => {
+            this.tweens.add({
+                targets: drop,
+                y: drop.y + 14,
+                alpha: { from: 0.62, to: 0.08 },
+                scaleY: 1.35,
+                delay: (animate ? this.meltAnimationMs : 0) + index * 180,
+                duration: 1250 + index * 120,
+                repeat: -1,
+                ease: 'Sine.easeInOut',
+                onRepeat: () => {
+                    drop.y = y + 3 + index * 4;
+                    drop.setAlpha(0.58);
+                    drop.setScale(1, 1);
+                }
+            });
+        });
+
+        this.placedSprites.push(meltTint, meltedShape, syrup, shadow, puddle, dripLeft, dripRight, shine, ...flowingDrops);
     }
 
     createFrozenIceCreamOverlay(x, y) {
