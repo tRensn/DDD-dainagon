@@ -1,7 +1,7 @@
 // 重力有モード: Matter.js 物理演算によりアイスが転がり・衝突するゲームシーン
 import { goToResult } from '../app-init.js';
 
-const TOUCH_TOLERANCE = 6;
+const TOUCH_TOLERANCE = 16;
 const ICE_RADIUS      = 34;
 const MELTED_RADIUS   = Math.round(ICE_RADIUS * 0.52); // ≈ 18
 const TEX_SIZE        = 76;
@@ -59,6 +59,7 @@ export class GravityGameScene extends Phaser.Scene {
     this.lastDisplayedElapsedSecond = -1;
     this.fallingPieceY              = 0;
     this.lastPeriodicMatchCheck     = 0;
+    this.feverScreenEffect          = null;
 
     this.createIceCreamTextures();
     this.createBackground();
@@ -530,7 +531,7 @@ export class GravityGameScene extends Phaser.Scene {
     this.time.delayedCall(700, () => {
       if (this.gameActive && this.gameStarted && !this.fallingPiece) this.spawnFallingPiece();
     });
-    this.time.delayedCall(300, () => {
+    this.time.delayedCall(80, () => {
       if (this.gameActive) this.scheduleMatchResolution();
     });
   }
@@ -557,18 +558,24 @@ export class GravityGameScene extends Phaser.Scene {
 
     if (this.fallingPiece) {
       const tx  = this.FRAME_X + (this.fallingCol + 0.5) * this.STEP_X;
-      const maxY = this.FRAME_Y + this.FRAME_HEIGHT - ICE_RADIUS;
+      const maxY = this._getAutoFallMaxY(tx);
       this.fallingPieceY = Math.min(this.fallingPieceY + 60 * delta / 1000, maxY);
       this.fallingPiece.setPosition(tx, this.fallingPieceY);
       Phaser.Physics.Matter.Matter.Body.setVelocity(this.fallingPiece.body, { x:0, y:0 });
+
+      // 床またはアイスに触れたら自動で落下確定（DROP ボタン不要）
+      if (this.fallingPieceY >= maxY - 0.5) {
+        this.dropFallingPiece();
+      }
     }
 
     if (this.isAnyPieceOverLine()) { this.endGame(); return; }
 
-    // 転がってきたアイスの遅延マッチを定期検出（600ms間隔）
-    if (this.gameStarted && !this.isResolving && !this.fallingPiece
+    // 転がってきたアイスの遅延マッチを定期検出（200ms間隔）
+    // fallingPiece があっても検出する（既存アイスが転がって揃う場合があるため）
+    if (this.gameStarted && !this.isResolving
         && this.placedPieces.length >= 3
-        && time - this.lastPeriodicMatchCheck > 600) {
+        && time - this.lastPeriodicMatchCheck > 200) {
       this.lastPeriodicMatchCheck = time;
       this.scheduleMatchResolution();
     }
@@ -612,13 +619,12 @@ export class GravityGameScene extends Phaser.Scene {
 
   _applyMelt(p) {
     p._melted = true;
-    // 静止化してから Body.scale で既存ボディを扁平化
-    // （setCircle はボディ再生成で上方向ジャンプが起きるため使わない）
     Phaser.Physics.Matter.Matter.Body.setVelocity(p.body, { x:0, y:0 });
     Phaser.Physics.Matter.Matter.Body.setAngularVelocity(p.body, 0);
     Phaser.Physics.Matter.Matter.Body.setStatic(p.body, true);
-    // 視覚と同じ比率 (0.84, 0.52) でボディを扁平楕円に変形
-    Phaser.Physics.Matter.Matter.Body.scale(p.body, 0.84, 0.52);
+    // Body.scale はボディを再生成せず頂点を直接縮小するため、静的化後に安全に使える。
+    // setCircle はボディ再生成で一時的に動的状態になり上方向に飛ぶため使わない。
+    Phaser.Physics.Matter.Matter.Body.scale(p.body, MELTED_RADIUS / ICE_RADIUS, MELTED_RADIUS / ICE_RADIUS);
     p._iceRadius = MELTED_RADIUS;
     p.setVisible(false);
 
@@ -644,12 +650,11 @@ export class GravityGameScene extends Phaser.Scene {
       if (p._meltParts) { p._meltParts.forEach(o => o.destroy()); p._meltParts = null; }
       p.setVisible(true);
       p._iceRadius = ICE_RADIUS;
-      // 静止中なのでボディ再生成でジャンプしない。扁平化を円に戻す
-      p.setCircle(ICE_RADIUS, {
-        friction:0.5, frictionStatic:0.6, restitution:0.12,
-        label:'ice', collisionFilter:{ category:0x0002, mask:0x0001|0x0002 },
-      });
+      // Body.scale でボディをスケールアップして動的に戻す（setCircle はボディ再生成するため使わない）
+      Phaser.Physics.Matter.Matter.Body.scale(p.body, ICE_RADIUS / MELTED_RADIUS, ICE_RADIUS / MELTED_RADIUS);
+      Phaser.Physics.Matter.Matter.Body.setStatic(p.body, false);
       Phaser.Physics.Matter.Matter.Body.setVelocity(p.body, { x:0, y:0 });
+      this.createSnowflakeEffect(p.x, p.y);
       hasUnfrozen = true;
     }
     return hasUnfrozen;
@@ -720,6 +725,7 @@ export class GravityGameScene extends Phaser.Scene {
       this.playMatchEffect(toRemove, chainCount);
 
       toRemove.forEach(p => {
+        if (!p.active || p._melted) return; // 溶けたアイスを誤って削除しない
         this.erasedCounts[p._iceType]++;
         if (p._meltParts) { p._meltParts.forEach(o => o.destroy()); p._meltParts = null; }
         const idx = this.placedPieces.indexOf(p);
@@ -791,7 +797,7 @@ export class GravityGameScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(9);
     });
     this.time.delayedCall(3000, () =>
-      goToResult(this.score, { maxChain:this.maxChain, erasedCounts:this.erasedCounts }));
+      goToResult(this.score, { maxChain:this.maxChain, erasedCounts:this.erasedCounts, mode:'gravity' }));
   }
 
   // ─── スコア / フィーバー ───
@@ -815,6 +821,7 @@ export class GravityGameScene extends Phaser.Scene {
     this.lastFeverPauseTime = this.time.now;
     this.playFeverSe();
     this.showFeverText();
+    this.showFeverScreenEffect();
     this.updateFeverGauge();
     // 溶けていたアイスを解凍してマッチ判定（ノーマルモードと同じ動作）
     const hasUnfrozen = this.unfreezeMeltedPieces();
@@ -824,6 +831,7 @@ export class GravityGameScene extends Phaser.Scene {
   updateFeverVisuals(time, delta) {
     if (time >= this.feverActiveUntil) {
       if (!this.feverEndHandled) this.feverEndHandled = true;
+      this.clearFeverScreenEffect();
       return;
     }
     this.feverRedrawTimer += delta;
@@ -1045,6 +1053,120 @@ export class GravityGameScene extends Phaser.Scene {
     [659.25,587.33,523.25,392.00].forEach((n,i) =>
       this.playTone(n, now+i*0.34, 0.42, 0.045, 'lead'));
     this.playTone(261.63, now+1.05, 1.1, 0.035, 'bass');
+  }
+
+  // ─── 落下ピースの自動落下上限Y（積まれたアイスの上で止まる） ───
+
+  _getAutoFallMaxY(tx) {
+    // 床の物理壁の上面 = FRAME_Y + FRAME_HEIGHT - coneOverlapY(30)
+    // アイス中心は上面 - ICE_RADIUS
+    const floorY = this.FRAME_Y + this.FRAME_HEIGHT - 30 - ICE_RADIUS;
+    let maxY = floorY;
+    for (const p of this.placedPieces) {
+      if (!p.active) continue;
+      const dx = Math.abs(p.x - tx);
+      if (dx < ICE_RADIUS * 1.8) {
+        const stopY = p.y - p._iceRadius - ICE_RADIUS;
+        if (stopY < maxY) maxY = stopY;
+      }
+    }
+    return maxY;
+  }
+
+  // ─── 雪の結晶エフェクト（フィーバー時） ───
+
+  createSnowflakeEffect(x, y) {
+    const g = this.createSnowflakeGraphic(x, y, 28, 0xE8F8FF, 0.98);
+    g.setDepth(11);
+    const ring = this.add.circle(x, y, 18).setDepth(10).setStrokeStyle(3, 0xA9DDF7, 0.9);
+    this.tweens.add({
+      targets: [g, ring], alpha: 0, scale: 1.8, angle: 180, duration: 900,
+      ease: 'Cubic.easeOut', onComplete: () => { g.destroy(); ring.destroy(); },
+    });
+  }
+
+  createSnowflakeGraphic(x, y, radius, color, alpha) {
+    const g = this.add.graphics({ x, y });
+    g.lineStyle(3, color, alpha);
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI * 2 * i) / 6;
+      const ex = Math.cos(a) * radius, ey = Math.sin(a) * radius;
+      const bx = Math.cos(a) * radius * 0.58, by = Math.sin(a) * radius * 0.58;
+      g.beginPath(); g.moveTo(0, 0); g.lineTo(ex, ey); g.strokePath();
+      g.beginPath();
+      g.moveTo(bx, by);
+      g.lineTo(bx + Math.cos(a + 0.78) * radius * 0.32, by + Math.sin(a + 0.78) * radius * 0.32);
+      g.moveTo(bx, by);
+      g.lineTo(bx + Math.cos(a - 0.78) * radius * 0.32, by + Math.sin(a - 0.78) * radius * 0.32);
+      g.strokePath();
+    }
+    g.fillStyle(0xFFFFFF, 0.95); g.fillCircle(0, 0, 4);
+    return g;
+  }
+
+  // ─── フィーバー画面エフェクト ───
+
+  showFeverScreenEffect() {
+    this.clearFeverScreenEffect();
+    const fx = this.FRAME_X, fy = this.FRAME_Y, fw = this.FRAME_WIDTH;
+    const overlay = this.add.rectangle(400, 300, 800, 600, 0x070B26, 0.58).setDepth(2);
+    const frameGlow = this.add.graphics().setDepth(12);
+    const effects = [];
+    this._drawFeverFrameGlow(frameGlow);
+    this.tweens.add({ targets: frameGlow, alpha: 0.35, duration: 480, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+    const spotlight = this.add.graphics().setDepth(3);
+    spotlight.fillStyle(0xFFE68A, 0.12);
+    spotlight.fillTriangle(0, 0, 248, 0, fx + 20, this.scale.height);
+    spotlight.fillTriangle(this.scale.width, 0, this.scale.width - 248, 0, fx + fw - 20, this.scale.height);
+    spotlight.fillStyle(0xF8AFC9, 0.08);
+    spotlight.fillTriangle(120, 0, 330, 0, fx + fw / 2, this.scale.height);
+    effects.push(spotlight);
+    this.tweens.add({ targets: spotlight, alpha: 0.42, duration: 820, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+    const lightColors = [0xFFE68A, 0xF8AFC9, 0xA9E8D1, 0xA9DDF7];
+    const leftX = fx + 10, rightX = fx + fw - 10;
+    const topY = fy + 10, bottomY = this.scale.height - 22;
+    for (let i = 0; i < 6; i++) {
+      const t = i / 5;
+      [leftX, rightX].forEach(lx => {
+        const light = this.add.circle(lx, Phaser.Math.Linear(topY + 58, bottomY, t), 7, lightColors[i % 4], 0.92).setDepth(13);
+        effects.push(light);
+        this.tweens.add({ targets: light, scale: 2.35, alpha: 0.22, duration: 430 + (i % 4) * 90, repeat: -1, yoyo: true, ease: 'Sine.easeInOut' });
+      });
+    }
+    for (let i = 0; i < 20; i++) {
+      const side = i % 2 === 0 ? -1 : 1;
+      const sx = side < 0 ? Phaser.Math.Between(24, 104) : Phaser.Math.Between(696, 776);
+      const sy = Phaser.Math.Between(70, 520);
+      const star = this.add.star(sx, sy, 5, 4, 11, lightColors[i % 4], 0.72).setDepth(13);
+      effects.push(star);
+      this.tweens.add({ targets: star, y: sy - Phaser.Math.Between(28, 64), angle: Phaser.Math.Between(160, 320), alpha: 0.18, duration: Phaser.Math.Between(1200, 2200), repeat: -1, yoyo: true, ease: 'Sine.easeInOut' });
+    }
+    this.feverScreenEffect = { overlay, frameGlow, effects };
+  }
+
+  _drawFeverFrameGlow(g) {
+    const fx = this.FRAME_X, fy = this.FRAME_Y, fw = this.FRAME_WIDTH;
+    const bot = this.scale.height, cr = 14;
+    g.lineStyle(16, 0xFFE68A, 0.22);
+    g.beginPath(); g.moveTo(fx+cr, fy-5); g.lineTo(fx+fw-cr, fy-5);
+    g.arc(fx+fw-cr, fy+cr-5, cr, -Math.PI/2, 0); g.lineTo(fx+fw+5, bot);
+    g.moveTo(fx-5, bot); g.lineTo(fx-5, fy+cr-5);
+    g.arc(fx+cr, fy+cr-5, cr, Math.PI, -Math.PI/2); g.strokePath();
+    g.lineStyle(7, 0xF8AFC9, 0.72);
+    g.beginPath(); g.moveTo(fx+cr, fy); g.lineTo(fx+fw-cr, fy);
+    g.arc(fx+fw-cr, fy+cr, cr, -Math.PI/2, 0); g.lineTo(fx+fw, bot);
+    g.moveTo(fx, bot); g.lineTo(fx, fy+cr);
+    g.arc(fx+cr, fy+cr, cr, Math.PI, -Math.PI/2); g.strokePath();
+  }
+
+  clearFeverScreenEffect() {
+    if (!this.feverScreenEffect) return;
+    const { overlay, frameGlow, effects } = this.feverScreenEffect;
+    overlay.destroy(); frameGlow.destroy();
+    effects.forEach(e => e.destroy());
+    this.feverScreenEffect = null;
   }
 
   wait(ms) { return new Promise(r => this.time.delayedCall(ms, r)); }
