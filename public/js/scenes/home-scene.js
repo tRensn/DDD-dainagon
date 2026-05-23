@@ -11,16 +11,16 @@ const ICE_ASSETS = [
 ];
 
 const SCATTERED_ICES = [
-  { key: 'home-ice-strawberry', x: 92, y: 96, size: 82, angle: -18 },
-  { key: 'home-ice-mint', x: 694, y: 82, size: 76, angle: 16 },
-  { key: 'home-ice-cookie', x: 138, y: 468, size: 92, angle: 12 },
-  { key: 'home-ice-azuki', x: 654, y: 478, size: 88, angle: -12 },
-  { key: 'home-ice-cone', x: 78, y: 316, size: 98, angle: 20 },
-  { key: 'home-ice-strawberry', x: 724, y: 318, size: 70, angle: -24 },
-  { key: 'home-ice-mint', x: 250, y: 120, size: 54, angle: 22 },
-  { key: 'home-ice-cookie', x: 548, y: 128, size: 58, angle: -15 },
-  { key: 'home-ice-azuki', x: 262, y: 510, size: 54, angle: -8 },
-  { key: 'home-ice-cone', x: 526, y: 516, size: 62, angle: 14 },
+  { key: 'home-ice-strawberry', x: 92, y: 96, size: 98, angle: -18 },
+  { key: 'home-ice-mint', x: 694, y: 82, size: 92, angle: 16 },
+  { key: 'home-ice-cookie', x: 138, y: 468, size: 110, angle: 12 },
+  { key: 'home-ice-azuki', x: 654, y: 478, size: 106, angle: -12 },
+  { key: 'home-ice-cone', x: 78, y: 316, size: 116, angle: 20 },
+  { key: 'home-ice-strawberry', x: 724, y: 318, size: 84, angle: -24 },
+  { key: 'home-ice-mint', x: 250, y: 120, size: 66, angle: 22 },
+  { key: 'home-ice-cookie', x: 548, y: 128, size: 70, angle: -15 },
+  { key: 'home-ice-azuki', x: 262, y: 510, size: 66, angle: -8 },
+  { key: 'home-ice-cone', x: 526, y: 516, size: 74, angle: 14 },
 ];
 
 const configEnv = window.DAINAGON_CONFIG ?? {};
@@ -154,21 +154,8 @@ export class HomeScene extends Phaser.Scene {
 
   createLoginArea() {
     if (appState.playerSession?.accessToken) {
-      // ログイン済み: プレイヤー名 + ログアウトボタン（左上）
-      this.add.text(12, 10, appState.playerSession.playerName, {
-        fontSize: '13px',
-        color: '#7f6bae',
-        fontFamily: "'Nunito', sans-serif",
-        fontStyle: 'bold',
-        stroke: '#ffffff',
-        strokeThickness: 3,
-      }).setDepth(6);
-
-      this._makeSmallBtn(72, 44, 'ログアウト', () => {
-        localStorage.removeItem('dainagon-player');
-        setPlayerSession(null);
-        this.scene.restart();
-      });
+      // ログイン済み: アイコン + プレイヤー名（左上）
+      this.createUserProfile(28, 31, appState.playerSession.playerName);
     } else {
       // 未ログイン: ログインボタン（左上）
       this._makeSmallBtn(72, 32, 'ログイン', () => {
@@ -176,6 +163,178 @@ export class HomeScene extends Phaser.Scene {
         this.scene.bringToTop('LoginScene');
       });
     }
+  }
+
+  createUserProfile(iconX, iconY, playerName) {
+    const avatar = this.add.graphics().setDepth(6);
+    const drawAvatar = alpha => {
+      avatar.clear();
+      this.drawGuestAvatar(avatar, iconX, iconY, 20, alpha);
+    };
+    drawAvatar(0.96);
+
+    if (appState.playerSession?.avatarDataUrl) {
+      this.createCustomAvatarImage(iconX, iconY, appState.playerSession.avatarDataUrl);
+    }
+
+    this.add.text(iconX + 29, iconY, playerName, {
+      fontSize: '15px',
+      color: '#7f6bae',
+      fontFamily: "'Nunito', sans-serif",
+      fontStyle: 'bold',
+      stroke: '#ffffff',
+      strokeThickness: 4,
+    }).setOrigin(0, 0.5).setDepth(6);
+
+    const iconHitArea = this.add.zone(iconX, iconY, 44, 44)
+      .setInteractive({ useHandCursor: true }).setDepth(8);
+    iconHitArea.on('pointerdown', () => this.toggleUserMenu(iconX, iconY + 28));
+    iconHitArea.on('pointerover', () => drawAvatar(0.78));
+    iconHitArea.on('pointerout',  () => drawAvatar(0.96));
+  }
+
+  toggleUserMenu(x, y) {
+    if (this.userMenu) {
+      this.userMenu.destroy(true);
+      this.userMenu = null;
+      return;
+    }
+
+    this.userMenu = this.add.container(x - 4, y).setDepth(12);
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0xfffdf7, 0.98);
+    bg.fillRoundedRect(0, 0, 164, 92, 10);
+    bg.lineStyle(3, 0xf6a7c8, 1);
+    bg.strokeRoundedRect(0, 0, 164, 92, 10);
+
+    const chooseButton = this.createUserMenuButton(82, 26, 140, 'アイコンをえらぶ', 0x7f6bae, () => {
+      this.openAvatarFilePicker();
+    });
+    const resetButton = this.createUserMenuButton(82, 60, 140, 'サインアウト', 0xe85d75, () => {
+      localStorage.removeItem('dainagon-player');
+      setPlayerSession(null);
+      this.scene.restart();
+    });
+
+    this.userMenu.add([bg, ...chooseButton, ...resetButton]);
+  }
+
+  createUserMenuButton(x, y, width, labelText, color, onClick) {
+    const buttonBg = this.add.graphics();
+    const drawButton = alpha => {
+      buttonBg.clear();
+      buttonBg.fillStyle(color, alpha);
+      buttonBg.fillRoundedRect(x - width / 2, y - 14, width, 28, 14);
+    };
+    drawButton(1);
+
+    const label = this.add.text(x, y, labelText, {
+      fontSize: '14px',
+      color: '#ffffff',
+      fontFamily: "'Nunito', sans-serif",
+      fontStyle: 'bold',
+      stroke: '#5f5478',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    const hitArea = this.add.zone(x, y, width, 28)
+      .setInteractive({ useHandCursor: true });
+    hitArea.on('pointerdown', onClick);
+    hitArea.on('pointerover', () => drawButton(0.78));
+    hitArea.on('pointerout',  () => drawButton(1));
+
+    return [buttonBg, label, hitArea];
+  }
+
+  createCustomAvatarImage(iconX, iconY, avatarDataUrl) {
+    const avatarImage = document.createElement('img');
+    avatarImage.src = avatarDataUrl;
+    avatarImage.alt = '';
+    avatarImage.style.cssText = [
+      'width:40px',
+      'height:40px',
+      'border-radius:50%',
+      'object-fit:cover',
+      'border:3px solid #a9ddf7',
+      'background:#fffdf7',
+      'box-sizing:border-box',
+      'pointer-events:none',
+    ].join(';');
+
+    this.add.dom(iconX, iconY, avatarImage).setDepth(7);
+  }
+
+  openAvatarFilePicker() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.style.display = 'none';
+
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      input.remove();
+
+      if (!file || !appState.playerSession) {
+        return;
+      }
+
+      this.saveAvatarFile(file);
+    });
+
+    document.body.appendChild(input);
+    input.click();
+  }
+
+  saveAvatarFile(file) {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      const size = 128;
+      const sourceSize = Math.min(image.width, image.height);
+      const sourceX = (image.width - sourceSize) / 2;
+      const sourceY = (image.height - sourceSize) / 2;
+      const context = canvas.getContext('2d');
+
+      canvas.width = size;
+      canvas.height = size;
+      context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
+      URL.revokeObjectURL(objectUrl);
+
+      if (!appState.playerSession) {
+        return;
+      }
+
+      setPlayerSession({
+        ...appState.playerSession,
+        avatarDataUrl: canvas.toDataURL('image/png'),
+      });
+      this.scene.restart();
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    image.src = objectUrl;
+  }
+
+  drawGuestAvatar(graphics, x, y, radius, alpha = 1) {
+    graphics.fillStyle(0xfffdf7, alpha);
+    graphics.fillCircle(x, y, radius);
+    graphics.lineStyle(Math.max(2, radius * 0.15), 0xa9ddf7, 1);
+    graphics.strokeCircle(x, y, radius);
+    graphics.fillStyle(0x7f6bae, 1);
+    graphics.fillCircle(x, y - radius * 0.3, radius * 0.3);
+    graphics.fillRoundedRect(
+      x - radius * 0.5,
+      y + radius * 0.18,
+      radius,
+      radius * 0.5,
+      radius * 0.3,
+    );
   }
 
   _makeSmallBtn(cx, cy, label, onClick) {
