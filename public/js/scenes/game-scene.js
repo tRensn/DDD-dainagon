@@ -332,7 +332,7 @@ export class GameScene extends Phaser.Scene {
     createNextIceCreamFrame() {
         const previewSize = 118;
         const previewX = this.iceCreamFrame.x + this.iceCreamFrame.width + 10;
-        const previewY = this.iceCreamFrame.y + 18;
+        const previewY = this.iceCreamFrame.y;
         const graphics = this.add.graphics();
         graphics.setDepth(14);
 
