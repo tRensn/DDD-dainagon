@@ -1317,13 +1317,21 @@ export class GameScene extends Phaser.Scene {
         this.lastFeverPauseUpdateTime = this.time.now;
         this.lastElapsedTimerUpdateTime = this.time.now;
 
-        if (this.isPaused) {
-            this.showPauseOverlay();
-        } else {
-            this.hidePauseOverlay();
-        }
+        this.syncPauseOverlayState();
         this.setCountdownPaused(this.isPaused);
         this.updatePauseButtonLabel();
+    }
+
+    syncPauseOverlayState() {
+        if (this.isPaused) {
+            if (!this.pauseOverlay || !this.pauseOverlay.panel?.scene) {
+                this.pauseOverlay = null;
+                this.showPauseOverlay();
+            }
+            return;
+        }
+
+        this.hidePauseOverlay();
     }
 
     updatePauseButtonLabel() {
@@ -1339,7 +1347,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     showPauseOverlay() {
-        if (this.pauseOverlay) return;
+        if (this.pauseOverlay?.panel?.scene) return;
+        this.pauseOverlay = null;
 
         const x = this.iceCreamFrame.x + this.iceCreamFrame.width / 2;
         const y = this.iceCreamFrame.y + 190;
@@ -1349,7 +1358,7 @@ export class GameScene extends Phaser.Scene {
         panel.fillRoundedRect(x - 125, y - 62, 250, 246, 16);
         panel.lineStyle(4, 0xA9DDF7, 0.9);
         panel.strokeRoundedRect(x - 125, y - 62, 250, 246, 16);
-        panel.setDepth(13);
+        panel.setDepth(60);
 
         const text = this.add.text(x, y - 12, 'PAUSE', {
             fontSize: '34px',
@@ -1357,7 +1366,7 @@ export class GameScene extends Phaser.Scene {
             fontStyle: 'bold',
             stroke: '#FFFFFF',
             strokeThickness: 6
-        }).setOrigin(0.5).setDepth(14).setShadow(2, 2, '#A9DDF7', 2, true, true);
+        }).setOrigin(0.5).setDepth(61).setShadow(2, 2, '#A9DDF7', 2, true, true);
 
         const retryButton = this.createPauseMenuButton(x, y + 42, 176, 40, 'リトライ', () => {
             this.prepareSceneRestart();
@@ -1382,7 +1391,7 @@ export class GameScene extends Phaser.Scene {
         base.strokeRoundedRect(x - width / 2, y - height / 2, width, height, 12);
         base.lineStyle(2, 0xFFF7FB, 0.95);
         base.strokeRoundedRect(x - width / 2 + 3, y - height / 2 + 3, width - 6, height - 6, 9);
-        base.setDepth(14);
+        base.setDepth(61);
 
         const label = this.add.text(x, y, labelText, {
             fontSize: '20px',
@@ -1390,10 +1399,10 @@ export class GameScene extends Phaser.Scene {
             fontStyle: 'bold',
             stroke: '#FFFFFF',
             strokeThickness: 4
-        }).setOrigin(0.5).setDepth(15);
+        }).setOrigin(0.5).setDepth(62);
 
         const hitArea = this.add.zone(x, y, width, height);
-        hitArea.setDepth(16);
+        hitArea.setDepth(63);
         hitArea.setInteractive({ useHandCursor: true });
         hitArea.on('pointerdown', (pointer, localX, localY, event) => {
             if (event) event.stopPropagation();
@@ -1418,13 +1427,13 @@ export class GameScene extends Phaser.Scene {
     hidePauseOverlay() {
         if (!this.pauseOverlay) return;
 
-        this.pauseOverlay.panel.destroy();
-        this.pauseOverlay.text.destroy();
+        this.pauseOverlay.panel?.destroy();
+        this.pauseOverlay.text?.destroy();
         if (this.pauseOverlay.buttons) {
             this.pauseOverlay.buttons.forEach((button) => {
-                button.base.destroy();
-                button.label.destroy();
-                button.hitArea.destroy();
+                button.base?.destroy();
+                button.label?.destroy();
+                button.hitArea?.destroy();
             });
         }
         this.pauseOverlay = null;
@@ -1658,6 +1667,7 @@ export class GameScene extends Phaser.Scene {
         if (!this.gameActive) return;
 
         if (this.isPaused) {
+            this.syncPauseOverlayState();
             this.pauseMeltTimersDuringStops(time);
             this.pauseFeverTimeDuringMatchResolution(time);
             this.lastElapsedTimerUpdateTime = time;
@@ -1688,8 +1698,21 @@ export class GameScene extends Phaser.Scene {
 
         const landingRow = this.getLandingRow(this.fallingIceCream.col);
         const isPassingThrough = time < (this.fallingIceCream.passThroughUntil || 0);
-        if (!isPassingThrough && (landingRow === -1 || this.fallingIceCream.y >= this.getCellCenterY(landingRow))) {
+
+        if (landingRow === -1) {
             this.fixIceCreamToGrid();
+            return;
+        }
+
+        const landingY = this.getCellCenterY(landingRow);
+        if (this.fallingIceCream.y >= landingY) {
+            this.fallingIceCream.y = landingY;
+            this.updateFallingSpritePosition();
+            this.updateDropMarker();
+
+            if (!isPassingThrough) {
+                this.fixIceCreamToGrid();
+            }
             return;
         }
 
@@ -1721,6 +1744,8 @@ export class GameScene extends Phaser.Scene {
             return;
         }
 
+        this.fallingIceCream.y = this.getCellCenterY(row);
+        this.updateFallingSpritePosition();
         this.destroyDropMarker();
 
         this.grid[row][col] = {
