@@ -1,4 +1,4 @@
-import { goToHowTo, goToRanking } from '../app-init.js';
+import { goToRanking } from '../app-init.js';
 import { appState, setPlayerSession } from '../state/app-state.js';
 import { BackendApi, createRankingStore } from '/src/backend/api.js';
 
@@ -366,29 +366,15 @@ export class HomeScene extends Phaser.Scene {
   }
 
   createHomeMenu() {
-    this.messageText = this.add
-      .text(400, 496, '', {
-        fontSize: '18px',
-        color: '#7f6bae',
-        fontFamily: "'Fredoka', sans-serif",
-        fontStyle: 'bold',
-        align: 'center',
-        stroke: '#ffffff',
-        strokeThickness: 4,
-      })
-      .setOrigin(0.5)
-      .setDepth(5);
-
-    this.createMenuButton(400, 228, 'あそびかた', () => goToHowTo());
-    this.createMenuButton(400, 306, 'ソロ', () => {
+    this.createMenuButton(400, 252, 'ソロ', () => {
       this.scene.launch('ModeSelectScene');
       this.scene.bringToTop('ModeSelectScene');
     });
-    this.createMenuButton(400, 384, '対戦', () => {
+    this.createMenuButton(400, 352, '対戦', () => {
       this.scene.launch('BattleModeSelectScene');
       this.scene.bringToTop('BattleModeSelectScene');
     });
-    this.createMenuButton(400, 462, 'ランキング', () => goToRanking());
+    this.createMenuButton(400, 452, 'ランキング', () => goToRanking());
   }
 
   createMenuButton(centerX, centerY, label, onClick) {
@@ -442,30 +428,4 @@ export class HomeScene extends Phaser.Scene {
     });
   }
 
-  showHowTo() {
-    this.messageText.setText('同じアイスをそろえて消そう！\nとける前にたくさんスコアをかせいでね');
-  }
-
-  async showRanking() {
-    this.messageText.setText('ランキングよみこみ中...');
-
-    try {
-      const ranking = await backendApi.getRanking();
-
-      if (ranking.length === 0) {
-        this.messageText.setText('まだランキングがありません');
-        return;
-      }
-
-      this.messageText.setText(
-        ranking
-          .slice(0, 3)
-          .map((entry, index) => `${index + 1}位 ${entry.playerName} ${entry.score}`)
-          .join('\n'),
-      );
-    } catch (error) {
-      console.error('Failed to load ranking:', error);
-      this.messageText.setText('ランキングをよみこめませんでした');
-    }
-  }
 }
