@@ -17,7 +17,6 @@ export class GameScene extends Phaser.Scene {
         this.load.image('ice-cookie-source', 'assets/images/クッキーアンドクリーム.png');
         this.load.image('ice-strawberry-source', 'assets/images/ストロベリー.png');
         this.load.image('ice-mint-source', 'assets/images/チョコミント.png');
-        this.load.image('game-character-source', 'assets/images/ロックの画像倉庫/ゲーム画面キャラ.png');
         // 画像やアセットの読み込みはここで行います
     }
 
@@ -30,7 +29,6 @@ export class GameScene extends Phaser.Scene {
         // ゲーム枠表示
         this.initGame();
         this.createIceCreamFrame();
-        this.createGameCharacter();
         this.createNextIceCreamFrame();
         this.createScoreGuideFrame();
 
@@ -222,116 +220,6 @@ export class GameScene extends Phaser.Scene {
 
         coneContext.drawImage(sourceCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
         coneTexture.refresh();
-    }
-
-    createGameCharacter() {
-        this.createWhiteBackgroundTransparentTexture('game-character-source', 'game-character-transparent');
-
-        const leftMargin = 2;
-        const gapFromFrame = 0;
-        const maxWidth = Math.max(120, this.iceCreamFrame.x - leftMargin - gapFromFrame);
-        const maxHeight = 250;
-        const sourceImage = this.textures.get('game-character-transparent').getSourceImage();
-        const scale = Math.min(maxWidth / sourceImage.width, maxHeight / sourceImage.height);
-        const displayWidth = sourceImage.width * scale;
-        const displayHeight = sourceImage.height * scale;
-        const maxX = Math.max(leftMargin, this.iceCreamFrame.x - displayWidth - gapFromFrame);
-        const centeredX = (this.iceCreamFrame.x - displayWidth) / 2;
-        const x = Phaser.Math.Clamp(centeredX, leftMargin, maxX);
-        const y = this.scale.height - displayHeight - 2;
-        const character = this.add.image(x, y, 'game-character-transparent');
-
-        character.setOrigin(0, 0);
-        character.setDisplaySize(displayWidth, displayHeight);
-        character.setDepth(12);
-        this.gameCharacter = character;
-    }
-
-    createWhiteBackgroundTransparentTexture(sourceKey, textureKey) {
-        if (this.textures.exists(textureKey)) {
-            this.textures.remove(textureKey);
-        }
-
-        const sourceImage = this.textures.get(sourceKey).getSourceImage();
-        const sourceCanvas = document.createElement('canvas');
-        sourceCanvas.width = sourceImage.width;
-        sourceCanvas.height = sourceImage.height;
-
-        const sourceContext = sourceCanvas.getContext('2d');
-        sourceContext.drawImage(sourceImage, 0, 0);
-
-        const imageData = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
-        const pixels = imageData.data;
-        const width = sourceCanvas.width;
-        const height = sourceCanvas.height;
-        const visited = new Uint8Array(width * height);
-        const stack = [];
-
-        const isBackgroundWhite = (pixelIndex) => {
-            const index = pixelIndex * 4;
-            const red = pixels[index];
-            const green = pixels[index + 1];
-            const blue = pixels[index + 2];
-            const alpha = pixels[index + 3];
-            return alpha > 0 && red > 238 && green > 238 && blue > 238 && Math.max(red, green, blue) - Math.min(red, green, blue) < 28;
-        };
-
-        const pushIfWhite = (x, y) => {
-            if (x < 0 || y < 0 || x >= width || y >= height) return;
-            const pixelIndex = y * width + x;
-            if (visited[pixelIndex] || !isBackgroundWhite(pixelIndex)) return;
-            visited[pixelIndex] = 1;
-            stack.push(pixelIndex);
-        };
-
-        for (let x = 0; x < width; x++) {
-            pushIfWhite(x, 0);
-            pushIfWhite(x, height - 1);
-        }
-        for (let y = 0; y < height; y++) {
-            pushIfWhite(0, y);
-            pushIfWhite(width - 1, y);
-        }
-
-        while (stack.length > 0) {
-            const pixelIndex = stack.pop();
-            const x = pixelIndex % width;
-            const y = Math.floor(pixelIndex / width);
-            pixels[pixelIndex * 4 + 3] = 0;
-            pushIfWhite(x + 1, y);
-            pushIfWhite(x - 1, y);
-            pushIfWhite(x, y + 1);
-            pushIfWhite(x, y - 1);
-        }
-
-        let minX = width;
-        let minY = height;
-        let maxX = 0;
-        let maxY = 0;
-        for (let index = 0; index < pixels.length; index += 4) {
-            if (pixels[index + 3] === 0) continue;
-            const pixelIndex = index / 4;
-            const x = pixelIndex % width;
-            const y = Math.floor(pixelIndex / width);
-            minX = Math.min(minX, x);
-            minY = Math.min(minY, y);
-            maxX = Math.max(maxX, x);
-            maxY = Math.max(maxY, y);
-        }
-
-        sourceContext.putImageData(imageData, 0, 0);
-
-        const padding = 4;
-        const cropX = Math.max(0, minX - padding);
-        const cropY = Math.max(0, minY - padding);
-        const cropWidth = Math.min(width - cropX, maxX - minX + padding * 2);
-        const cropHeight = Math.min(height - cropY, maxY - minY + padding * 2);
-        const transparentTexture = this.textures.createCanvas(textureKey, cropWidth, cropHeight);
-        const transparentContext = transparentTexture.getContext();
-
-        transparentContext.clearRect(0, 0, cropWidth, cropHeight);
-        transparentContext.drawImage(sourceCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-        transparentTexture.refresh();
     }
 
     createNextIceCreamFrame() {
@@ -716,14 +604,18 @@ export class GameScene extends Phaser.Scene {
     }
 
     createUI() {
+        const timePanelX = 14;
+        const timePanelY = 188;
+        const timePanelWidth = 206;
+        const timePanelHeight = 70;
         const timePanel = this.add.graphics();
         timePanel.setDepth(14);
         timePanel.fillStyle(0xFFFDF7, 0.82);
-        timePanel.fillRoundedRect(14, 188, 206, 70, 12);
+        timePanel.fillRoundedRect(timePanelX, timePanelY, timePanelWidth, timePanelHeight, 12);
         timePanel.lineStyle(3, 0xA9DDF7, 0.9);
-        timePanel.strokeRoundedRect(14, 188, 206, 70, 12);
+        timePanel.strokeRoundedRect(timePanelX, timePanelY, timePanelWidth, timePanelHeight, 12);
 
-        this.timeLabelText = this.add.text(28, 200, this.timeLimitOn ? '残り時間' : 'タイム', {
+        this.timeLabelText = this.add.text(timePanelX + 14, timePanelY + 12, this.timeLimitOn ? '残り時間' : 'タイム', {
             fontSize: '18px',
             fill: '#5BA7D1',
             fontStyle: 'bold',
@@ -733,7 +625,7 @@ export class GameScene extends Phaser.Scene {
         this.timeLabelText.setShadow(2, 2, '#DDEBFF', 2, true, true);
         this.timeLabelText.setDepth(15);
 
-        this.elapsedTimeText = this.add.text(28, 221, this.timeLimitOn ? '01:00' : '00:00', {
+        this.elapsedTimeText = this.add.text(timePanelX + 14, timePanelY + 33, this.timeLimitOn ? '01:00' : '00:00', {
             fontSize: '30px',
             fill: '#7F6BAE',
             fontStyle: 'bold',
@@ -743,27 +635,26 @@ export class GameScene extends Phaser.Scene {
         this.elapsedTimeText.setShadow(2, 2, '#A9DDF7', 2, true, true);
         this.elapsedTimeText.setDepth(15);
 
-        const panel = this.add.graphics();
-        panel.setDepth(14);
-        const scorePanelX = this.iceCreamFrame.x;
-        const scorePanelY = 24;
-        const scorePanelWidth = this.iceCreamFrame.width;
+        const scorePanel = this.add.graphics();
+        scorePanel.setDepth(14);
+        const scorePanelX = timePanelX;
+        const scorePanelY = timePanelY + timePanelHeight + 12;
+        const scorePanelWidth = timePanelWidth;
         const scorePanelHeight = 58;
-        panel.fillStyle(0xFFFDF7, 0.84);
-        panel.fillRoundedRect(scorePanelX, scorePanelY, scorePanelWidth, scorePanelHeight, 14);
-        panel.lineStyle(4, 0xF6A7C8, 0.92);
-        panel.strokeRoundedRect(scorePanelX, scorePanelY, scorePanelWidth, scorePanelHeight, 14);
-        panel.lineStyle(2, 0xFFF7FB, 0.95);
-        panel.strokeRoundedRect(scorePanelX + 4, scorePanelY + 4, scorePanelWidth - 8, scorePanelHeight - 8, 11);
-        // スコア表示（左側）
-        this.scoreText = this.add.text(560, 100, `スコア: ${this.score}`, {
-            fontSize: '26px',
+        scorePanel.fillStyle(0xFFFDF7, 0.84);
+        scorePanel.fillRoundedRect(scorePanelX, scorePanelY, scorePanelWidth, scorePanelHeight, 12);
+        scorePanel.lineStyle(3, 0xF6A7C8, 0.92);
+        scorePanel.strokeRoundedRect(scorePanelX, scorePanelY, scorePanelWidth, scorePanelHeight, 12);
+        scorePanel.lineStyle(2, 0xFFF7FB, 0.95);
+        scorePanel.strokeRoundedRect(scorePanelX + 4, scorePanelY + 4, scorePanelWidth - 8, scorePanelHeight - 8, 9);
+
+        this.scoreText = this.add.text(scorePanelX + 14, scorePanelY + scorePanelHeight / 2, `スコア: ${this.score}`, {
+            fontSize: '24px',
             fill: '#7F6BAE',
             fontStyle: 'bold',
             stroke: '#FFFFFF',
             strokeThickness: 5
         });
-        this.scoreText.setPosition(scorePanelX + 22, scorePanelY + scorePanelHeight / 2);
         this.scoreText.setOrigin(0, 0.5);
         this.scoreText.setShadow(2, 2, '#F6A7C8', 2, true, true);
         this.scoreText.setDepth(15);
@@ -771,24 +662,24 @@ export class GameScene extends Phaser.Scene {
     }
 
     createFeverGauge() {
-        const panelX = this.iceCreamFrame.x + 20;
-        const panelY = this.scale.height - 44;
-        const panelWidth = this.iceCreamFrame.width - 40;
-        const panelHeight = 34;
+        const panelX = this.iceCreamFrame.x;
+        const panelY = 24;
+        const panelWidth = this.iceCreamFrame.width;
+        const panelHeight = 58;
         const panel = this.add.graphics();
 
         panel.fillStyle(0xFFFDF7, 0.96);
-        panel.fillRoundedRect(panelX, panelY, panelWidth, panelHeight, 10);
-        panel.lineStyle(5, 0xF6A7C8, 1);
-        panel.strokeRoundedRect(panelX, panelY, panelWidth, panelHeight, 10);
-        panel.lineStyle(2, 0xFFE68A, 0.95);
-        panel.strokeRoundedRect(panelX + 3, panelY + 3, panelWidth - 6, panelHeight - 6, 8);
+        panel.fillRoundedRect(panelX, panelY, panelWidth, panelHeight, 14);
+        panel.lineStyle(4, 0xF6A7C8, 0.92);
+        panel.strokeRoundedRect(panelX, panelY, panelWidth, panelHeight, 14);
+        panel.lineStyle(2, 0xFFF7FB, 0.95);
+        panel.strokeRoundedRect(panelX + 4, panelY + 4, panelWidth - 8, panelHeight - 8, 11);
         panel.setDepth(14);
 
         this.feverGauge = {
-            x: panelX + 12,
-            y: panelY + 10,
-            width: panelWidth - 24,
+            x: panelX + 24,
+            y: panelY + 21,
+            width: panelWidth - 48,
             height: 16,
             graphics: this.add.graphics()
         };
@@ -852,8 +743,8 @@ export class GameScene extends Phaser.Scene {
             { x: 632, y: 488, radius: 28, label: '<', fontSize: '29px', holdDirection: -1, action: () => this.moveFallingIceCream(-1) },
             { x: 732, y: 488, radius: 28, label: '>', fontSize: '29px', holdDirection: 1, action: () => this.moveFallingIceCream(1) },
             {
-                x: 682,
-                y: 552,
+                x: this.iceCreamFrame.x / 2,
+                y: 488,
                 radius: 34,
                 label: 'DROP',
                 fontSize: '16px',
