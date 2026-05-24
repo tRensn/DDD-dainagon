@@ -452,11 +452,11 @@ export class GravityGameScene extends Phaser.Scene {
 
   createMobileControls() {
     const buttons = [
-      { x:612, y:520, radius:30,  label:'<',    fontSize:'30px',
+      { x:632, y:488, radius:28, label:'<',    fontSize:'29px',
         action: () => this.moveFallingPiece(-1) },
-      { x:684, y:520, radius:30,  label:'>',    fontSize:'30px',
+      { x:732, y:488, radius:28, label:'>',    fontSize:'29px',
         action: () => this.moveFallingPiece(1) },
-      { x:748, y:520, radius:34,  label:'DROP', fontSize:'16px',
+      { x:this.FRAME_X/2, y:488, radius:34, label:'DROP', fontSize:'16px',
         action: () => { if (this.gameStarted && !this.isPaused && this.fallingPiece) this.dropFallingPiece(); } },
     ];
     buttons.forEach(btn => {
