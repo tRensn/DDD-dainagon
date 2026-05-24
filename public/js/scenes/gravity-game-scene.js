@@ -11,6 +11,11 @@ export class GravityGameScene extends Phaser.Scene {
     super({ key: 'GravityGameScene' });
   }
 
+  init(data) {
+    this.timeLimitOn  = data?.timeLimitOn  ?? false;
+    this.battleConfig = data?.battleConfig ?? null;
+  }
+
   preload() {
     this.load.image('cone-image', 'js/state/game screen image/image.png');
     if (!this.textures.exists('ice-azuki-source'))
@@ -21,6 +26,14 @@ export class GravityGameScene extends Phaser.Scene {
       this.load.image('ice-strawberry-source', 'assets/images/ストロベリー.png');
     if (!this.textures.exists('ice-mint-source'))
       this.load.image('ice-mint-source',       'assets/images/チョコミント.png');
+    if (!this.cache.audio.has('normal-bgm'))
+      this.load.audio('normal-bgm',      'assets/images/ロックの素材倉庫/通常BGM.mp3');
+    if (!this.cache.audio.has('fever-bgm'))
+      this.load.audio('fever-bgm',       'assets/images/ロックの素材倉庫/フィーバーBGM.mp3');
+    if (!this.cache.audio.has('chain-first-se'))
+      this.load.audio('chain-first-se',  'assets/images/ロックの素材倉庫/1連鎖目SE.mp3');
+    if (!this.cache.audio.has('chain-combo-se'))
+      this.load.audio('chain-combo-se',  'assets/images/ロックの素材倉庫/2連鎖目以降.mp3');
   }
 
   create() {
@@ -62,6 +75,7 @@ export class GravityGameScene extends Phaser.Scene {
     this.lastPauseTime              = 0;
     this.lastFeverPauseTime         = 0;
     this.meltTimeMs                 = 8000;
+    this.meltAnimationMs            = 760;
     this.elapsedPlayMs              = 0;
     this.lastElapsedTimerUpdateTime = 0;
     this.lastDisplayedElapsedSecond = -1;
@@ -78,6 +92,7 @@ export class GravityGameScene extends Phaser.Scene {
     this.createUI();
     this.createFeverGauge();
     this.createPauseHint();
+    this.createPauseButton();
     this.createMobileControls();
     this.setupInput();
     this.createPastelBgm();
@@ -321,52 +336,47 @@ export class GravityGameScene extends Phaser.Scene {
     timePanel.lineStyle(3, 0xA9DDF7, 0.9);
     timePanel.strokeRoundedRect(14, 188, 206, 70, 12);
 
-    this.add.text(28, 200, 'タイム', {
+    this.add.text(28, 200, this.timeLimitOn ? '残り時間' : 'タイム', {
       fontSize:'18px', fill:'#5BA7D1', fontStyle:'bold',
       stroke:'#FFFFFF', strokeThickness:4,
     }).setShadow(2,2,'#DDEBFF',2,true,true).setDepth(15);
 
-    this.elapsedTimeText = this.add.text(28, 221, '00:00', {
+    this.elapsedTimeText = this.add.text(28, 221, this.timeLimitOn ? '01:00' : '00:00', {
       fontSize:'30px', fill:'#7F6BAE', fontStyle:'bold',
       stroke:'#FFFFFF', strokeThickness:5,
     }).setShadow(2,2,'#A9DDF7',2,true,true).setDepth(15);
 
-    // スコアパネル（フレーム上部中央）
-    const spX = this.FRAME_X, spY = 24, spW = this.FRAME_WIDTH, spH = 58;
-    const panel = this.add.graphics().setDepth(14);
-    panel.fillStyle(0xFFFDF7, 0.84);
-    panel.fillRoundedRect(spX, spY, spW, spH, 14);
-    panel.lineStyle(4, 0xF6A7C8, 0.92);
-    panel.strokeRoundedRect(spX, spY, spW, spH, 14);
-    panel.lineStyle(2, 0xFFF7FB, 0.95);
-    panel.strokeRoundedRect(spX+4, spY+4, spW-8, spH-8, 11);
+    // スコアパネル（左側・タイマーの下）
+    const scorePanel = this.add.graphics().setDepth(14);
+    scorePanel.fillStyle(0xFFFDF7, 0.84);
+    scorePanel.fillRoundedRect(14, 270, 206, 58, 12);
+    scorePanel.lineStyle(3, 0xF6A7C8, 0.92);
+    scorePanel.strokeRoundedRect(14, 270, 206, 58, 12);
+    scorePanel.lineStyle(2, 0xFFF7FB, 0.95);
+    scorePanel.strokeRoundedRect(18, 274, 198, 50, 9);
 
-    this.scoreText = this.add.text(0, 0, 'スコア: 0', {
-      fontSize:'26px', fill:'#7F6BAE', fontStyle:'bold',
+    this.scoreText = this.add.text(28, 299, 'スコア: 0', {
+      fontSize:'24px', fill:'#7F6BAE', fontStyle:'bold',
       stroke:'#FFFFFF', strokeThickness:5,
-    });
-    this.scoreText.setPosition(spX+22, spY+spH/2);
-    this.scoreText.setOrigin(0, 0.5);
-    this.scoreText.setShadow(2,2,'#F6A7C8',2,true,true);
-    this.scoreText.setDepth(15);
+    }).setOrigin(0, 0.5).setShadow(2,2,'#F6A7C8',2,true,true).setDepth(15);
   }
 
   createFeverGauge() {
-    const panelX = this.FRAME_X + 20;
-    const panelY = this.scale.height - 44;
-    const panelW = this.FRAME_WIDTH - 40;
-    const panelH = 34;
+    const panelX = this.FRAME_X;
+    const panelY = 24;
+    const panelW = this.FRAME_WIDTH;
+    const panelH = 58;
     const panel  = this.add.graphics().setDepth(14);
     panel.fillStyle(0xFFFDF7, 0.96);
-    panel.fillRoundedRect(panelX, panelY, panelW, panelH, 10);
-    panel.lineStyle(5, 0xF6A7C8, 1);
-    panel.strokeRoundedRect(panelX, panelY, panelW, panelH, 10);
-    panel.lineStyle(2, 0xFFE68A, 0.95);
-    panel.strokeRoundedRect(panelX+3, panelY+3, panelW-6, panelH-6, 8);
+    panel.fillRoundedRect(panelX, panelY, panelW, panelH, 14);
+    panel.lineStyle(4, 0xF6A7C8, 0.92);
+    panel.strokeRoundedRect(panelX, panelY, panelW, panelH, 14);
+    panel.lineStyle(2, 0xFFF7FB, 0.95);
+    panel.strokeRoundedRect(panelX+4, panelY+4, panelW-8, panelH-8, 11);
 
     this.feverGauge = {
-      x: panelX+12, y: panelY+10,
-      width: panelW-24, height: 16,
+      x: panelX+24, y: panelY+21,
+      width: panelW-48, height: 16,
       graphics: this.add.graphics().setDepth(15),
     };
     this.updateFeverGauge();
@@ -379,13 +389,74 @@ export class GravityGameScene extends Phaser.Scene {
     }).setDepth(6);
   }
 
+  createPauseButton() {
+    const x = 20, y = 18, w = 140, h = 42, r = 12;
+    const btn = this.add.graphics().setDepth(18);
+    btn.fillStyle(0xFFFDF7, 0.94);
+    btn.fillRoundedRect(x, y, w, h, r);
+    btn.lineStyle(4, 0xF6A7C8, 1);
+    btn.strokeRoundedRect(x, y, w, h, r);
+    btn.lineStyle(2, 0xFFF7FB, 0.9);
+    btn.strokeRoundedRect(x + 3, y + 3, w - 6, h - 6, r - 3);
+
+    const label = this.add.text(x + w / 2, y + h / 2, 'PAUSE（esc）', {
+      fontSize: '17px', fill: '#7F6BAE', fontStyle: 'bold',
+      stroke: '#FFFFFF', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(19);
+
+    const hit = this.add.zone(x + w / 2, y + h / 2, w, h).setDepth(20)
+      .setInteractive({ useHandCursor: true });
+    hit.on('pointerdown', (p, lx, ly, ev) => {
+      if (ev) ev.stopPropagation();
+      if (!this.gameActive || !this.gameStarted) return;
+      btn.setAlpha(0.76); label.setScale(0.96);
+      this.togglePause();
+    });
+    hit.on('pointerup',  () => { btn.setAlpha(1); label.setScale(1); });
+    hit.on('pointerout', () => { btn.setAlpha(1); label.setScale(1); });
+
+    this.pauseButton = { btn, label, hit };
+  }
+
+  updatePauseButtonLabel() {
+    if (!this.pauseButton) return;
+    this.pauseButton.label.setText(this.isPaused ? 'RESUME' : 'PAUSE（esc）');
+  }
+
+  _makePauseBtn(x, y, text, action) {
+    const W = 176, H = 40;
+    const base = this.add.graphics().setDepth(14);
+    base.fillStyle(0xFFFFFF, 0.96);
+    base.fillRoundedRect(x - W/2, y - H/2, W, H, 12);
+    base.lineStyle(4, 0xF6A7C8, 1);
+    base.strokeRoundedRect(x - W/2, y - H/2, W, H, 12);
+    base.lineStyle(2, 0xFFF7FB, 0.95);
+    base.strokeRoundedRect(x - W/2 + 3, y - H/2 + 3, W - 6, H - 6, 9);
+
+    const label = this.add.text(x, y, text, {
+      fontSize: '20px', fill: '#7F6BAE', fontStyle: 'bold',
+      stroke: '#FFFFFF', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(15);
+
+    const hit = this.add.zone(x, y, W, H).setDepth(16).setInteractive({ useHandCursor: true });
+    hit.on('pointerdown', (p, lx, ly, ev) => {
+      if (ev) ev.stopPropagation();
+      base.setAlpha(0.72); label.setScale(0.95);
+      action();
+    });
+    hit.on('pointerup',  () => { base.setAlpha(1); label.setScale(1); });
+    hit.on('pointerout', () => { base.setAlpha(1); label.setScale(1); });
+
+    return { base, label, hit };
+  }
+
   createMobileControls() {
     const buttons = [
-      { x:612, y:520, radius:30,  label:'<',    fontSize:'30px',
+      { x:632, y:488, radius:28, label:'<',    fontSize:'29px',
         action: () => this.moveFallingPiece(-1) },
-      { x:684, y:520, radius:30,  label:'>',    fontSize:'30px',
+      { x:732, y:488, radius:28, label:'>',    fontSize:'29px',
         action: () => this.moveFallingPiece(1) },
-      { x:748, y:520, radius:34,  label:'DROP', fontSize:'16px',
+      { x:this.FRAME_X/2, y:488, radius:34, label:'DROP', fontSize:'16px',
         action: () => { if (this.gameStarted && !this.isPaused && this.fallingPiece) this.dropFallingPiece(); } },
     ];
     buttons.forEach(btn => {
@@ -443,6 +514,9 @@ export class GravityGameScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-ESC', () => {
       if (this.gameActive && this.gameStarted) this.togglePause();
     });
+    this.input.keyboard.on('keydown-ENTER', () => {
+      if (this.isPaused) this.scene.restart();
+    });
   }
 
   togglePause() {
@@ -457,31 +531,42 @@ export class GravityGameScene extends Phaser.Scene {
       this.matter.world.resume();
       this.hidePauseOverlay();
     }
+    this.updatePauseButtonLabel();
   }
 
   showPauseOverlay() {
+    if (this.pauseOverlay) return;
     const cx = this.FRAME_X + this.FRAME_WIDTH / 2;
     const y  = this.FRAME_Y + 190;
+
     const panel = this.add.graphics().setDepth(13);
-    panel.fillStyle(0xFFFDF7,0.88); panel.fillRoundedRect(cx-115,y-42,230,92,14);
-    panel.lineStyle(4,0xA9DDF7,0.9); panel.strokeRoundedRect(cx-115,y-42,230,92,14);
-    const txt = this.add.text(cx, y-12, 'PAUSE', {
-      fontSize:'34px', fill:'#7F6BAE', fontStyle:'bold',
-      stroke:'#FFFFFF', strokeThickness:6,
-    }).setOrigin(0.5).setDepth(14).setShadow(2,2,'#A9DDF7',2,true,true);
-    const retryTxt = this.add.text(cx, y+28, 'Enterでリトライ', {
-      fontSize:'19px', fill:'#E85D75', fontStyle:'bold',
-      stroke:'#FFFFFF', strokeThickness:4,
-    }).setOrigin(0.5).setDepth(14).setShadow(2,2,'#F6A7C8',2,true,true);
-    this.pauseOverlay = { panel, txt, retryTxt };
+    panel.fillStyle(0xFFFDF7, 0.88);
+    panel.fillRoundedRect(cx - 125, y - 62, 250, 230, 16);
+    panel.lineStyle(4, 0xA9DDF7, 0.9);
+    panel.strokeRoundedRect(cx - 125, y - 62, 250, 230, 16);
+
+    const txt = this.add.text(cx, y - 12, 'PAUSE', {
+      fontSize: '34px', fill: '#7F6BAE', fontStyle: 'bold',
+      stroke: '#FFFFFF', strokeThickness: 6,
+    }).setOrigin(0.5).setDepth(14).setShadow(2, 2, '#A9DDF7', 2, true, true);
+
+    const retryBtn  = this._makePauseBtn(cx, y + 42,  'リトライ',     () => this.scene.restart());
+    const resumeBtn = this._makePauseBtn(cx, y + 88,  'ゲームに戻る', () => this.togglePause());
+    const homeBtn   = this._makePauseBtn(cx, y + 134, 'ホーム画面へ', () => this.scene.start('HomeScene'));
+
+    this.pauseOverlay = { panel, txt, buttons: [retryBtn, resumeBtn, homeBtn] };
+    this.updatePauseButtonLabel();
   }
 
   hidePauseOverlay() {
     if (!this.pauseOverlay) return;
     this.pauseOverlay.panel.destroy();
     this.pauseOverlay.txt.destroy();
-    this.pauseOverlay.retryTxt.destroy();
+    this.pauseOverlay.buttons.forEach(b => {
+      b.base.destroy(); b.label.destroy(); b.hit.destroy();
+    });
     this.pauseOverlay = null;
+    this.updatePauseButtonLabel();
   }
 
   // ─── カウントダウン ───
@@ -500,6 +585,7 @@ export class GravityGameScene extends Phaser.Scene {
       this.gameStarted = true;
       this.elapsedPlayMs = 0;
       this.lastElapsedTimerUpdateTime = this.time.now;
+      this.startPastelBgm();
       this.spawnFallingPiece();
     });
   }
@@ -559,6 +645,7 @@ export class GravityGameScene extends Phaser.Scene {
     const piece = this.fallingPiece;
     this.fallingPiece = null;
 
+    this.playLandingSe();
     piece.setIgnoreGravity(false);
     piece._placedAt = this.time.now;
     this.placedPieces.push(piece);
@@ -605,6 +692,7 @@ export class GravityGameScene extends Phaser.Scene {
       }
     }
 
+    if (this.timeLimitOn && this.elapsedPlayMs >= 60000) { this.endGame(true); return; }
     if (this.isAnyPieceOverLine()) { this.endGame(); return; }
 
     // 転がってきたアイスの遅延マッチを定期検出（200ms間隔）
@@ -635,11 +723,18 @@ export class GravityGameScene extends Phaser.Scene {
 
   updateElapsedTimeText() {
     if (!this.elapsedTimeText) return;
-    const sec = Math.floor(this.elapsedPlayMs / 1000);
-    if (sec === this.lastDisplayedElapsedSecond) return;
-    this.lastDisplayedElapsedSecond = sec;
-    const m = Math.floor(sec / 60), s = sec % 60;
-    this.elapsedTimeText.setText(`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`);
+    if (this.timeLimitOn) {
+      const remaining = Math.max(0, 60 - Math.floor(this.elapsedPlayMs / 1000));
+      const m = Math.floor(remaining / 60), s = remaining % 60;
+      this.elapsedTimeText.setText(`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`);
+      this.elapsedTimeText.setColor(remaining <= 10 ? '#E85D75' : '#7F6BAE');
+    } else {
+      const sec = Math.floor(this.elapsedPlayMs / 1000);
+      if (sec === this.lastDisplayedElapsedSecond) return;
+      this.lastDisplayedElapsedSecond = sec;
+      const m = Math.floor(sec / 60), s = sec % 60;
+      this.elapsedTimeText.setText(`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`);
+    }
   }
 
   // ─── 溶けによる縮小 ───
@@ -658,24 +753,28 @@ export class GravityGameScene extends Phaser.Scene {
     Phaser.Physics.Matter.Matter.Body.setVelocity(p.body, { x:0, y:0 });
     Phaser.Physics.Matter.Matter.Body.setAngularVelocity(p.body, 0);
     Phaser.Physics.Matter.Matter.Body.setStatic(p.body, true);
-    // Body.scale はボディを再生成せず頂点を直接縮小するため、静的化後に安全に使える。
-    // setCircle はボディ再生成で一時的に動的状態になり上方向に飛ぶため使わない。
     Phaser.Physics.Matter.Matter.Body.scale(p.body, MELTED_RADIUS / ICE_RADIUS, MELTED_RADIUS / ICE_RADIUS);
     p._iceRadius = MELTED_RADIUS;
     p.setVisible(false);
 
-    // ノーマルモードの createMeltedIceCreamOverlay と同一の溶け見た目
     const x = p.x, y = p.y;
+    const animMs  = this.meltAnimationMs;
+    const puddleY = y + 29;
+
     const meltTint    = this.add.circle(x, y, 25, 0xDDEBFF, 0.12).setDepth(5);
     const meltedShape = this.add.image(x, y + 12, this.ICE_TYPES[p._iceType].texture)
       .setScale(0.84, 0.52).setAlpha(0.32).setTint(0xDDEBFF).setDepth(5);
-    const syrup = this.add.graphics().setDepth(6);
-    const puddleY = y + 29;
-    const shadow   = this.add.ellipse(x,     puddleY + 4, 48, 14, 0x7F6BAE, 0.10).setDepth(5);
-    const puddle   = this.add.ellipse(x,     puddleY,     44, 14, 0xFFFFFF, 0.46).setDepth(5);
-    const dripL    = this.add.ellipse(x - 15, puddleY + 6, 12,  7, 0xFFFFFF, 0.42).setDepth(5);
-    const dripR    = this.add.ellipse(x + 16, puddleY + 7, 14,  8, 0xDDEBFF, 0.44).setDepth(5);
-    const shine    = this.add.ellipse(x -  7, puddleY - 2, 14,  4, 0xFFF7FB, 0.56).setDepth(5);
+    const syrup  = this.add.graphics().setDepth(6);
+    const shadow = this.add.ellipse(x,      puddleY + 4, 48, 14, 0x7F6BAE, 0.10).setDepth(5);
+    const puddle = this.add.ellipse(x,      puddleY,     44, 14, 0xFFFFFF, 0.46).setDepth(5);
+    const dripL  = this.add.ellipse(x - 15, puddleY + 6, 12,  7, 0xFFFFFF, 0.42).setDepth(5);
+    const dripR  = this.add.ellipse(x + 16, puddleY + 7, 14,  8, 0xDDEBFF, 0.44).setDepth(5);
+    const shine  = this.add.ellipse(x -  7, puddleY - 2, 14,  4, 0xFFF7FB, 0.56).setDepth(5);
+    const flowingDrops = [
+      this.add.ellipse(x - 18, y +  5, 7, 13, 0xFFFFFF, 0.38).setDepth(7),
+      this.add.ellipse(x +  2, y + 11, 6, 12, 0xDDEBFF, 0.34).setDepth(7),
+      this.add.ellipse(x + 18, y +  3, 7, 14, 0xFFFFFF, 0.36).setDepth(7),
+    ];
 
     syrup.fillStyle(0xFFFFFF, 0.42);
     syrup.fillRoundedRect(x - 20, y - 3, 7, 22, 4);
@@ -686,7 +785,23 @@ export class GravityGameScene extends Phaser.Scene {
     syrup.fillCircle(x + 19, y + 22, 6);
     syrup.fillCircle(x +  2, y + 20, 4);
 
-    p._meltParts = [meltTint, meltedShape, syrup, shadow, puddle, dripL, dripR, shine];
+    // フェードイン（ノーマルモードの animate=true と同じ）
+    [meltTint, meltedShape, syrup, shadow, puddle, dripL, dripR, shine, ...flowingDrops].forEach(o => o.setAlpha(0));
+    meltedShape.setY(y + 4).setScale(0.78, 0.78);
+    puddle.setScale(0.25, 0.35); dripL.setScale(0.2, 0.25); dripR.setScale(0.2, 0.25);
+    shine.setScale(0.25, 0.4);  shadow.setScale(0.2, 0.35);
+    flowingDrops.forEach(d => d.setScale(0.25, 0.2));
+
+    this.tweens.add({ targets: [meltTint, syrup, shadow, puddle, dripL, dripR, shine, ...flowingDrops], alpha: { from: 0, to: 1 }, duration: animMs, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: meltedShape, y: y + 12, alpha: 0.32, scaleX: 0.84, scaleY: 0.52, duration: animMs, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: [puddle, dripL, dripR, shine, shadow], scaleX: 1, scaleY: 1, duration: animMs, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: flowingDrops, scaleX: 1, scaleY: 1, duration: animMs, ease: 'Back.easeOut' });
+
+    // ループ（呼吸）アニメーション
+    this.tweens.add({ targets: meltTint,    scale: 1.18, alpha: 0.22, delay: animMs, duration: 1700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: meltedShape, y: y + 16, scaleX: 0.84 * 1.08, scaleY: 0.52 * 0.92, delay: animMs, duration: 1900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+    p._meltParts = [meltTint, meltedShape, syrup, shadow, puddle, dripL, dripR, shine, ...flowingDrops];
   }
 
   unfreezeMeltedPieces() {
@@ -765,21 +880,36 @@ export class GravityGameScene extends Phaser.Scene {
 
       let chainBase = 0;
       const toRemove = new Set();
+      const groupInfos = [];
       for (const group of groups) {
-        chainBase += this.calcMatchScore(group[0]._iceType, group.length);
+        const groupScore = this.calcMatchScore(group[0]._iceType, group.length);
+        chainBase += groupScore;
         group.forEach(p => toRemove.add(p));
+        const gcx = group.reduce((s, p) => s + p.x, 0) / group.length;
+        const gcy = group.reduce((s, p) => s + p.y, 0) / group.length;
+        groupInfos.push({ cx: gcx, cy: gcy, score: groupScore });
       }
-      scoreDelta += this.calcChainScore(chainBase, chainCount);
+      const iterScore = this.calcChainScore(chainBase, chainCount);
+      scoreDelta += iterScore;
+
+      const pieces = [...toRemove];
+      const cx = pieces.reduce((s, p) => s + p.x, 0) / pieces.length;
+      const cy = pieces.reduce((s, p) => s + p.y, 0) / pieces.length;
+      this.showScorePopup(cx, cy, chainBase, chainCount, groupInfos);
+
       this.playMatchEffect(toRemove, chainCount);
 
+      let clearedThisIter = 0;
       toRemove.forEach(p => {
-        if (!p.active || p._melted) return; // 溶けたアイスを誤って削除しない
+        if (!p.active || p._melted) return;
         this.erasedCounts[p._iceType]++;
+        clearedThisIter++;
         if (p._meltParts) { p._meltParts.forEach(o => o.destroy()); p._meltParts = null; }
         const idx = this.placedPieces.indexOf(p);
         if (idx >= 0) this.placedPieces.splice(idx, 1);
         p.destroy();
       });
+      this.checkFeverTime(clearedThisIter);
       this.maxChain = Math.max(this.maxChain, chainCount);
       found = true;
       chainCount++;
@@ -787,7 +917,6 @@ export class GravityGameScene extends Phaser.Scene {
 
     this.score += scoreDelta;
     this.scoreText.setText(`スコア: ${this.score}`);
-    this.checkFeverTime(scoreDelta);
     this.updateFeverGauge();
   }
 
@@ -820,8 +949,9 @@ export class GravityGameScene extends Phaser.Scene {
     return false;
   }
 
-  endGame() {
+  endGame(timeUp = false) {
     if (!this.gameActive) return;
+    this._timeUp = timeUp;
     this.gameActive = false;
     this.matter.world.pause();
     this.playGameOverBgm();
@@ -833,7 +963,8 @@ export class GravityGameScene extends Phaser.Scene {
     const panel = this.add.graphics().setDepth(8);
     panel.fillStyle(0xFFFDF7,0.92); panel.fillRoundedRect(cx-120,y-34,240,72,16);
     panel.lineStyle(4,0xE85D75,0.9); panel.strokeRoundedRect(cx-120,y-34,240,72,16);
-    this.add.text(cx, y, 'GAME OVER', {
+    const gameOverLabel = (this.timeLimitOn && this.elapsedPlayMs >= 60000) ? 'ゲーム終了' : 'GAME OVER';
+    this.add.text(cx, y, gameOverLabel, {
       fontSize:'34px', fill:'#E85D75', fontStyle:'bold',
       stroke:'#FFFFFF', strokeThickness:6,
     }).setOrigin(0.5).setDepth(9).setShadow(2,2,'#F6A7C8',2,true,true);
@@ -844,8 +975,65 @@ export class GravityGameScene extends Phaser.Scene {
         stroke:'#FFFFFF', strokeThickness:4,
       }).setOrigin(0.5).setDepth(9);
     });
-    this.time.delayedCall(3000, () =>
-      goToResult(this.score, { maxChain:this.maxChain, erasedCounts:this.erasedCounts, mode:'gravity' }));
+    this.time.delayedCall(3000, () => {
+      if (this.battleConfig) {
+        this.events.emit('battle-end', this.score);
+        return;
+      }
+      goToResult(this.score, { maxChain:this.maxChain, erasedCounts:this.erasedCounts, mode:'gravity', timeLimitOn:this.timeLimitOn, timeUp:this._timeUp });
+    });
+  }
+
+  // ─── スコアポップアップ ───
+
+  showScorePopup(cx, cy, totalScore, chainCount, groupInfos) {
+    const isMulti  = groupInfos.length > 1;
+    const hasChain = chainCount > 1;
+
+    const _makeTxt = (x, y, text, fontSize, color, strokeW, shadowColor) => {
+      const t = this.add.text(x, y, text, {
+        fontSize, fill: color, fontStyle: 'bold',
+        stroke: '#FFFFFF', strokeThickness: strokeW,
+      }).setOrigin(0.5).setDepth(21);
+      t.setShadow(1, 1, shadowColor, 2, false, true);
+      return t;
+    };
+
+    // 複数グループ同時消去：各グループ近くに個別スコアを小さく表示
+    if (isMulti) {
+      groupInfos.forEach(g => {
+        const sign   = g.score >= 0 ? '+' : '';
+        const color  = g.score >= 0 ? '#C05A80' : '#4F9F8B';
+        const shadow = g.score >= 0 ? '#F6A7C8' : '#A8EDD8';
+        const t = _makeTxt(g.cx, g.cy - 8, `${sign}${g.score}`, '20px', color, 4, shadow);
+        this.tweens.add({
+          targets: t, y: '-=48', alpha: 0, duration: 850,
+          ease: 'Cubic.easeOut', onComplete: () => t.destroy(),
+        });
+      });
+    }
+
+    // 合計スコア（複数同時は大きく、単体は通常サイズ）
+    const sign      = totalScore >= 0 ? '+' : '';
+    const color     = totalScore >= 0 ? '#C05A80' : '#4F9F8B';
+    const shadow    = totalScore >= 0 ? '#F6A7C8' : '#A8EDD8';
+    const fontSize  = isMulti ? '40px' : '28px';
+    const strokeW   = isMulti ? 8 : 6;
+    const offsetY   = isMulti ? 28 : 10;
+
+    const targets = [];
+
+    if (hasChain) {
+      targets.push(_makeTxt(cx, cy - offsetY - 28, `${chainCount}連鎖！`,
+        '18px', '#F09040', 4, '#FFE4B8'));
+    }
+    targets.push(_makeTxt(cx, cy - offsetY, `${sign}${totalScore}`,
+      fontSize, color, strokeW, shadow));
+
+    this.tweens.add({
+      targets, y: '-=72', alpha: 0, duration: 1000,
+      ease: 'Cubic.easeOut', onComplete: () => targets.forEach(t => t.destroy()),
+    });
   }
 
   // ─── スコア / フィーバー ───
@@ -855,9 +1043,9 @@ export class GravityGameScene extends Phaser.Scene {
   }
   calcChainScore(base, chain) { return base + 3*(chain-1); }
 
-  checkFeverTime(delta) {
-    if (delta <= 0 || this.time.now < this.feverActiveUntil) return;
-    this.feverGaugeScore += delta;
+  checkFeverTime(clearedCount) {
+    if (clearedCount <= 0 || this.time.now < this.feverActiveUntil) return;
+    this.feverGaugeScore += clearedCount;
     if (this.feverGaugeScore >= 20) { this.feverGaugeScore = 0; this.startFeverTime(); }
   }
 
@@ -867,18 +1055,24 @@ export class GravityGameScene extends Phaser.Scene {
     this.feverGaugeScore    = 0;
     this.lastPauseTime      = this.time.now;
     this.lastFeverPauseTime = this.time.now;
+    this.startFeverBgm();
     this.playFeverSe();
     this.showFeverText();
     this.showFeverScreenEffect();
     this.updateFeverGauge();
-    // 溶けていたアイスを解凍してマッチ判定（ノーマルモードと同じ動作）
     const hasUnfrozen = this.unfreezeMeltedPieces();
     if (hasUnfrozen) this.scheduleMatchResolution();
   }
 
   updateFeverVisuals(time, delta) {
     if (time >= this.feverActiveUntil) {
-      if (!this.feverEndHandled) this.feverEndHandled = true;
+      if (!this.feverEndHandled) {
+        this.feverEndHandled = true;
+        this.feverGaugeScore = 0;
+        this.updateFeverGauge();
+        this.stopFeverBgm();
+        if (this.gameActive && this.gameStarted) this.startPastelBgm();
+      }
       this.clearFeverScreenEffect();
       return;
     }
@@ -905,14 +1099,48 @@ export class GravityGameScene extends Phaser.Scene {
 
   // ─── エフェクト ───
 
-  playMatchEffect(pieces, chainCount) {
-    if (this.audioContext) {
-      const now = this.audioContext.currentTime;
-      this.playTone(783.99,  now,      0.18, 0.04,  'sparkle');
-      this.playTone(1046.50, now+0.09, 0.2,  0.045, 'sparkle');
-      this.playTone(1318.51, now+0.2,  0.22, 0.04,  'sparkle');
-      this.playTone(1567.98, now+0.33, 0.32, 0.032, 'sparkle');
+  playChainSe(chainCount) {
+    const key = chainCount === 1 ? 'chain-first-se' : 'chain-combo-se';
+    this.sound.play(key, { volume: chainCount === 1 ? 0.58 : 0.62 });
+  }
+
+  playLandingSe() {
+    this.prepareAudioContext();
+    if (!this.audioContext) return;
+    const now = this.audioContext.currentTime;
+    const thump = this.audioContext.createOscillator();
+    const thumpGain = this.audioContext.createGain();
+    const click = this.audioContext.createBufferSource();
+    const clickFilter = this.audioContext.createBiquadFilter();
+    const clickGain = this.audioContext.createGain();
+    const buf = this.audioContext.createBuffer(1, Math.floor(this.audioContext.sampleRate * 0.035), this.audioContext.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      const t = i / data.length;
+      data[i] = (Math.random() * 2 - 1) * (1 - t) * 0.35;
     }
+    thump.type = 'sine';
+    thump.frequency.setValueAtTime(150, now);
+    thump.frequency.exponentialRampToValueAtTime(86, now + 0.11);
+    thumpGain.gain.setValueAtTime(0.0001, now);
+    thumpGain.gain.linearRampToValueAtTime(0.12, now + 0.008);
+    thumpGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+    click.buffer = buf;
+    clickFilter.type = 'bandpass';
+    clickFilter.frequency.setValueAtTime(760, now);
+    clickFilter.Q.setValueAtTime(0.9, now);
+    clickGain.gain.setValueAtTime(0.055, now);
+    clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+    thump.connect(thumpGain); thumpGain.connect(this.masterGain);
+    click.connect(clickFilter); clickFilter.connect(clickGain); clickGain.connect(this.masterGain);
+    thump.start(now); thump.stop(now + 0.18);
+    click.start(now + 0.004); click.stop(now + 0.055);
+    thump.onended = () => { thump.disconnect(); thumpGain.disconnect(); };
+    click.onended = () => { click.disconnect(); clickFilter.disconnect(); clickGain.disconnect(); };
+  }
+
+  playMatchEffect(pieces, chainCount) {
+    this.playChainSe(chainCount);
     [...pieces].forEach((p,i) => {
       const bx = p.x, by = p.y;
       this.time.delayedCall(i*65, () => this.createBurst(bx, by));
@@ -947,49 +1175,53 @@ export class GravityGameScene extends Phaser.Scene {
   // ─── BGM / SE ───
 
   createPastelBgm() {
-    this.bgmBeatMs = 220; this.bgmBeatIndex = 0; this.bgmStarted = false;
-    this.bgmMeasures = [
-      { chord:[261.63,329.63,392.00], bass:[261.63,392.00,329.63,392.00],
-        melody:[659.25,783.99,880.00,null,987.77,880.00,783.99,659.25] },
-      { chord:[349.23,440.00,523.25], bass:[349.23,523.25,440.00,523.25],
-        melody:[698.46,880.00,1046.50,1174.66,null,1046.50,880.00,698.46] },
-      { chord:[392.00,493.88,587.33], bass:[392.00,587.33,493.88,587.33],
-        melody:[783.99,987.77,1174.66,1318.51,1174.66,null,987.77,880.00] },
-      { chord:[329.63,392.00,493.88], bass:[329.63,493.88,392.00,493.88],
-        melody:[659.25,783.99,987.77,1046.50,987.77,880.00,783.99,659.25] },
-      { chord:[440.00,523.25,659.25], bass:[440.00,659.25,523.25,659.25],
-        melody:[880.00,1046.50,1174.66,1318.51,null,1174.66,1046.50,880.00] },
-      { chord:[392.00,493.88,659.25], bass:[392.00,659.25,493.88,659.25],
-        melody:[987.77,1174.66,1318.51,1567.98,1318.51,1174.66,null,987.77] },
-      { chord:[349.23,440.00,587.33], bass:[349.23,587.33,440.00,587.33],
-        melody:[880.00,1046.50,1174.66,1046.50,880.00,783.99,698.46,null] },
-      { chord:[392.00,523.25,659.25], bass:[392.00,659.25,523.25,659.25],
-        melody:[783.99,880.00,987.77,1046.50,880.00,783.99,659.25,523.25] },
-    ];
-    const start = () => this.startBgm();
-    this.time.delayedCall(300, start);
-    this.input.once('pointerdown', start);
-    this.input.keyboard.once('keydown', start);
+    this.bgmStarted = false;
+    const prepare = () => this.prepareAudioContext();
+    this.time.delayedCall(300, prepare);
+    this.input.once('pointerdown', prepare);
+    this.input.keyboard.once('keydown', prepare);
     this.game.events.on('focus', () => {
       if (this.audioContext?.state === 'suspended') this.audioContext.resume();
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       if (this.bgmLoop) { this.bgmLoop.remove(false); this.bgmLoop = null; }
+      if (this.normalBgm) { this.normalBgm.stop(); this.normalBgm.destroy(); this.normalBgm = null; }
+      if (this.feverBgm)  { this.feverBgm.stop();  this.feverBgm.destroy();  this.feverBgm  = null; }
       this.bgmStarted = false;
     });
   }
 
-  startBgm() {
-    if (this.bgmStarted && this.audioContext?.state === 'running') return;
+  prepareAudioContext() {
     const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    this.audioContext = this.audioContext || new AC();
-    this.setupAudio();
-    if (this.audioContext.state === 'suspended') this.audioContext.resume();
+    if (AC) {
+      this.audioContext = this.audioContext || new AC();
+      this.setupAudio();
+      if (this.audioContext.state === 'suspended') this.audioContext.resume();
+    }
+  }
+
+  startPastelBgm() {
+    if (this.bgmStarted && this.normalBgm?.isPlaying && this.audioContext?.state === 'running') return;
+    this.prepareAudioContext();
     this.bgmStarted = true;
-    if (this.bgmLoop) return;
-    this.playBgmBeat();
-    this.bgmLoop = this.time.addEvent({ delay:110, loop:true, callback:()=>this.playBgmBeat() });
+    if (this.feverBgm?.isPlaying) this.feverBgm.stop();
+    if (!this.normalBgm) {
+      this.normalBgm = this.sound.add('normal-bgm', { loop: true, volume: 0.45 });
+    }
+    if (!this.normalBgm.isPlaying) this.normalBgm.play();
+  }
+
+  startFeverBgm() {
+    this.prepareAudioContext();
+    if (this.normalBgm?.isPlaying) this.normalBgm.stop();
+    if (!this.feverBgm) {
+      this.feverBgm = this.sound.add('fever-bgm', { loop: true, volume: 0.48 });
+    }
+    if (!this.feverBgm.isPlaying) this.feverBgm.play();
+  }
+
+  stopFeverBgm() {
+    if (this.feverBgm?.isPlaying) this.feverBgm.stop();
   }
 
   setupAudio() {
@@ -1004,39 +1236,6 @@ export class GravityGameScene extends Phaser.Scene {
     this.audioLimiter.release.setValueAtTime(0.18, this.audioContext.currentTime);
     this.masterGain.connect(this.audioLimiter);
     this.audioLimiter.connect(this.audioContext.destination);
-  }
-
-  playBgmBeat() {
-    if (!this.audioContext) return;
-    const now     = this.audioContext.currentTime;
-    const measure = this.bgmMeasures[Math.floor(this.bgmBeatIndex/8) % this.bgmMeasures.length];
-    const beat    = this.bgmBeatIndex % 8;
-    const isFever = this.time.now < this.feverActiveUntil;
-    const bs      = (isFever ? this.bgmBeatMs*0.72 : this.bgmBeatMs) / 1000;
-
-    if (this.bgmBeatIndex % 2 === 1) {
-      if (isFever) this.playTone(measure.chord[beat%measure.chord.length]*2, now, bs*0.4, 0.024, 'sparkle');
-      this.bgmBeatIndex++;
-      return;
-    }
-
-    const mel = measure.melody[beat];
-    if (mel) {
-      const isPhraseEnd = beat===3 || beat===7;
-      this.playTone(mel, now, isPhraseEnd ? bs*1.35 : bs*0.92, isFever?0.072:0.05, 'lead');
-      if (isFever) this.playTone(mel*1.5, now+bs*0.18, bs*0.65, 0.032, 'sparkle');
-    }
-
-    this.playTone(measure.chord[beat%measure.chord.length], now+bs*0.5, bs*0.58, isFever?0.024:0.016, 'chord');
-
-    if (beat % 2 === 0) {
-      this.playTone(measure.bass[Math.floor(beat/2)%measure.bass.length], now, bs*1.55, isFever?0.045:0.03, 'bass');
-      if (isFever) measure.chord.forEach(n => this.playTone(n*2, now+bs*0.08, bs*1.1, 0.018, 'chord'));
-    }
-
-    if (beat===6 && mel) this.playTone(mel*2, now+bs*0.25, bs*0.45, isFever?0.035:0.018, 'sparkle');
-
-    this.bgmBeatIndex++;
   }
 
   playTone(freq, start, dur, vol, role) {
@@ -1096,6 +1295,8 @@ export class GravityGameScene extends Phaser.Scene {
 
   playGameOverBgm() {
     if (this.bgmLoop) { this.bgmLoop.remove(false); this.bgmLoop = null; }
+    if (this.normalBgm?.isPlaying) this.normalBgm.stop();
+    if (this.feverBgm?.isPlaying)  this.feverBgm.stop();
     if (!this.audioContext) return;
     const now = this.audioContext.currentTime;
     [659.25,587.33,523.25,392.00].forEach((n,i) =>
@@ -1173,17 +1374,30 @@ export class GravityGameScene extends Phaser.Scene {
     this.tweens.add({ targets: spotlight, alpha: 0.42, duration: 820, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
     const lightColors = [0xFFE68A, 0xF8AFC9, 0xA9E8D1, 0xA9DDF7];
+    const lightPositions = [];
     const leftX = fx + 10, rightX = fx + fw - 10;
     const topY = fy + 10, bottomY = this.scale.height - 22;
+
+    // フレーム上部ライト（フィーバーラベル付近を除く）
+    for (let i = 0; i < 8; i++) {
+      const t = i / 7;
+      const lx = Phaser.Math.Linear(leftX + 22, rightX - 22, t);
+      if (Math.abs(lx - fx - fw / 2) >= 86) lightPositions.push({ x: lx, y: topY });
+    }
+    // フレーム左右ライト
     for (let i = 0; i < 6; i++) {
       const t = i / 5;
-      [leftX, rightX].forEach(lx => {
-        const light = this.add.circle(lx, Phaser.Math.Linear(topY + 58, bottomY, t), 7, lightColors[i % 4], 0.92).setDepth(13);
-        effects.push(light);
-        this.tweens.add({ targets: light, scale: 2.35, alpha: 0.22, duration: 430 + (i % 4) * 90, repeat: -1, yoyo: true, ease: 'Sine.easeInOut' });
-      });
+      lightPositions.push({ x: leftX,  y: Phaser.Math.Linear(topY + 58, bottomY, t) });
+      lightPositions.push({ x: rightX, y: Phaser.Math.Linear(topY + 58, bottomY, t) });
     }
-    for (let i = 0; i < 20; i++) {
+    lightPositions.forEach((pos, idx) => {
+      const light = this.add.circle(pos.x, pos.y, 7, lightColors[idx % 4], 0.92).setDepth(13);
+      effects.push(light);
+      this.tweens.add({ targets: light, scale: 2.35, alpha: 0.22, duration: 430 + (idx % 4) * 90, repeat: -1, yoyo: true, ease: 'Sine.easeInOut' });
+    });
+
+    // 背景スター
+    for (let i = 0; i < 26; i++) {
       const side = i % 2 === 0 ? -1 : 1;
       const sx = side < 0 ? Phaser.Math.Between(24, 104) : Phaser.Math.Between(696, 776);
       const sy = Phaser.Math.Between(70, 520);
@@ -1191,6 +1405,20 @@ export class GravityGameScene extends Phaser.Scene {
       effects.push(star);
       this.tweens.add({ targets: star, y: sy - Phaser.Math.Between(28, 64), angle: Phaser.Math.Between(160, 320), alpha: 0.18, duration: Phaser.Math.Between(1200, 2200), repeat: -1, yoyo: true, ease: 'Sine.easeInOut' });
     }
+
+    // 上部スパークル
+    const labelCX = fx + fw / 2;
+    for (let i = 0; i < 14; i++) {
+      const useLeft = i % 2 === 0;
+      const sx = useLeft
+        ? Phaser.Math.Between(36, Math.max(36, labelCX - 132))
+        : Phaser.Math.Between(Math.min(this.scale.width - 36, labelCX + 132), this.scale.width - 36);
+      const sy = Phaser.Math.Between(18, 82);
+      const sparkle = this.add.star(sx, sy, 4, 3, 7, lightColors[(i + 2) % 4], 0.72).setDepth(13).setAngle(Phaser.Math.Between(0, 45));
+      effects.push(sparkle);
+      this.tweens.add({ targets: sparkle, x: sx + Phaser.Math.Between(-18, 18), y: sy + Phaser.Math.Between(12, 28), angle: Phaser.Math.Between(120, 260), alpha: 0.2, duration: Phaser.Math.Between(850, 1500), repeat: -1, yoyo: true, ease: 'Sine.easeInOut' });
+    }
+
     this.feverScreenEffect = { overlay, frameGlow, effects };
   }
 

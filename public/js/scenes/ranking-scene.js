@@ -1,10 +1,29 @@
-import { BackendApi, createRankingStore } from '/src/backend/api.js';
+import { BackendApi, createRankingStore, DEFAULT_GRAVITY_RANKING_TABLE, DEFAULT_TIMED_RANKING_TABLE, DEFAULT_GRAVITY_TIMED_RANKING_TABLE } from '/src/backend/api.js';
 import { goToHome } from '../app-init.js';
 
 const configEnv = window.DAINAGON_CONFIG ?? {};
-const backendApi = new BackendApi({
-  rankingStore: createRankingStore(configEnv),
-});
+const rankingApis = {
+  normal: {
+    untimed: new BackendApi({ rankingStore: createRankingStore(configEnv) }),
+    timed: new BackendApi({
+      rankingStore: createRankingStore(configEnv, {
+        table: configEnv.SUPABASE_TIMED_RANKING_TABLE || DEFAULT_TIMED_RANKING_TABLE,
+      }),
+    }),
+  },
+  gravity: {
+    untimed: new BackendApi({
+      rankingStore: createRankingStore(configEnv, {
+        table: configEnv.SUPABASE_GRAVITY_RANKING_TABLE || DEFAULT_GRAVITY_RANKING_TABLE,
+      }),
+    }),
+    timed: new BackendApi({
+      rankingStore: createRankingStore(configEnv, {
+        table: configEnv.SUPABASE_GRAVITY_TIMED_RANKING_TABLE || DEFAULT_GRAVITY_TIMED_RANKING_TABLE,
+      }),
+    }),
+  },
+};
 
 const TOP_THREE_CROWNS = [
   {
@@ -36,7 +55,7 @@ const TOP_THREE_CROWNS = [
   },
 ];
 
-const RANKING_ROW_Y = [176, 238, 294, 352, 402];
+const RANKING_ROW_Y = [218, 268, 318, 368, 418];
 const RANK_MARK_X = 220;
 
 export class RankingScene extends Phaser.Scene {
@@ -46,6 +65,10 @@ export class RankingScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor('#FFEAF4');
+    this.selectedMode = 'normal';
+    this.selectedTime = 'untimed';
+    this.rankingObjects = [];
+    this.filterButtons = [];
 
     const centerX = this.scale.width / 2;
 
@@ -60,14 +83,16 @@ export class RankingScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    this.createFilterButtons(centerX);
+
     const panel = this.add.graphics();
     panel.fillStyle(0xfffdf7, 0.92);
-    panel.fillRoundedRect(170, 145, 460, 315, 16);
+    panel.fillRoundedRect(170, 195, 460, 265, 16);
     panel.lineStyle(4, 0xf6a7c8, 1);
-    panel.strokeRoundedRect(170, 145, 460, 315, 16);
+    panel.strokeRoundedRect(170, 195, 460, 265, 16);
 
-    const status = this.add
-      .text(centerX, 285, 'ランキングよみこみ中...', {
+    this.statusText = this.add
+      .text(centerX, 328, 'ランキングよみこみ中...', {
         fontSize: '22px',
         color: '#7f6bae',
         fontFamily: "'Nunito', sans-serif",
@@ -78,19 +103,86 @@ export class RankingScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.createBackButton(centerX, 515);
-    this.renderRanking(status);
+    this.renderRanking();
   }
 
-  async renderRanking(status) {
+  createFilterButtons(centerX) {
+    this.createFilterButton(centerX - 105, 137, 190, 'ノーマル', 'mode', 'normal');
+    this.createFilterButton(centerX + 105, 137, 190, 'ころころ', 'mode', 'gravity');
+    this.createFilterButton(centerX - 105, 170, 190, '時間なし', 'time', 'untimed');
+    this.createFilterButton(centerX + 105, 170, 190, '時間あり', 'time', 'timed');
+    this.updateFilterButtons();
+  }
+
+  createFilterButton(x, y, width, label, type, value) {
+    const height = 28;
+    const graphics = this.add.graphics();
+    const text = this.add
+      .text(x, y, label, {
+        fontSize: '17px',
+        color: '#7f6bae',
+        fontFamily: "'Nunito', sans-serif",
+        fontStyle: 'bold',
+        stroke: '#ffffff',
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5);
+    const hitArea = this.add.zone(x, y, width, height).setInteractive({ useHandCursor: true });
+
+    hitArea.on('pointerdown', () => {
+      if (type === 'mode') {
+        this.selectedMode = value;
+      } else {
+        this.selectedTime = value;
+      }
+      this.updateFilterButtons();
+      this.renderRanking();
+    });
+
+    const button = { graphics, text, hitArea, x, y, width, height, type, value };
+    this.filterButtons.push(button);
+    return button;
+  }
+
+  updateFilterButtons() {
+    this.filterButtons.forEach((button) => {
+      const selected = button.type === 'mode'
+        ? this.selectedMode === button.value
+        : this.selectedTime === button.value;
+      button.graphics.clear();
+      button.graphics.fillStyle(selected ? 0xf6a7c8 : 0xfffdf7, selected ? 1 : 0.92);
+      button.graphics.fillRoundedRect(button.x - button.width / 2, button.y - button.height / 2, button.width, button.height, 10);
+      button.graphics.lineStyle(3, selected ? 0xe85d75 : 0xa9ddf7, 1);
+      button.graphics.strokeRoundedRect(button.x - button.width / 2, button.y - button.height / 2, button.width, button.height, 10);
+      button.text.setColor(selected ? '#2b2440' : '#7f6bae');
+    });
+  }
+
+  clearRankingObjects() {
+    this.rankingObjects.forEach((object) => object.destroy());
+    this.rankingObjects = [];
+  }
+
+  addRankingObject(object) {
+    this.rankingObjects.push(object);
+    return object;
+  }
+
+  async renderRanking() {
+    this.clearRankingObjects();
+    this.statusText.setText('ランキングよみこみ中...');
+    this.statusText.setVisible(true);
+
     try {
-      const ranking = await backendApi.getRanking();
+      const api = rankingApis[this.selectedMode][this.selectedTime];
+      const ranking = await api.getRanking();
 
       if (ranking.length === 0) {
-        status.setText('まだランキングがありません');
+        this.statusText.setText('まだランキングがありません');
         return;
       }
 
-      status.destroy();
+      this.statusText.setVisible(false);
 
       ranking.slice(0, 5).forEach((entry, index) => {
         const y = RANKING_ROW_Y[index];
@@ -101,7 +193,7 @@ export class RankingScene extends Phaser.Scene {
         this.createRankMark(RANK_MARK_X, y + 21, index);
 
         if (!crown) {
-          this.add
+          this.addRankingObject(this.add
             .text(RANK_MARK_X, y + 17, `${index + 1}位`, {
               fontSize: `${Math.max(22, nameSize - 3)}px`,
               color,
@@ -110,19 +202,19 @@ export class RankingScene extends Phaser.Scene {
               stroke: '#ffffff',
               strokeThickness: 4,
             })
-            .setOrigin(0.5);
+            .setOrigin(0.5));
         }
 
-        this.add.text(335, y, entry.playerName, {
+        this.addRankingObject(this.add.text(335, y, entry.playerName, {
           fontSize: `${nameSize}px`,
           color: '#7f6bae',
           fontFamily: "'Nunito', sans-serif",
           fontStyle: crown ? 'bold' : '',
           stroke: '#ffffff',
           strokeThickness: 4,
-        });
+        }));
 
-        this.add
+        this.addRankingObject(this.add
           .text(580, y, String(entry.score), {
             fontSize: `${Math.max(24, nameSize - 3)}px`,
             color,
@@ -131,11 +223,12 @@ export class RankingScene extends Phaser.Scene {
             stroke: '#ffffff',
             strokeThickness: 4,
           })
-          .setOrigin(1, 0);
+          .setOrigin(1, 0));
       });
     } catch (error) {
       console.error('Failed to load ranking:', error);
-      status.setText('ランキングをよみこめませんでした');
+      this.statusText.setText('ランキングをよみこめませんでした');
+      this.statusText.setVisible(true);
     }
   }
 
@@ -154,7 +247,7 @@ export class RankingScene extends Phaser.Scene {
     const centerTop = y - 27 * size;
     const middleTop = y - 13 * size;
     const tipRadius = 4.5 * size;
-    const graphics = this.add.graphics();
+    const graphics = this.addRankingObject(this.add.graphics());
 
     graphics.fillStyle(crown.fill, 1);
     graphics.fillTriangle(
@@ -227,7 +320,7 @@ export class RankingScene extends Phaser.Scene {
     graphics.fillCircle(x, centerTop, tipRadius);
     graphics.fillCircle(x + halfWidth - 4 * size, sideTop, tipRadius);
 
-    this.add
+    this.addRankingObject(this.add
       .text(x, y - 3 * size, String(index + 1), {
         fontSize: `${24 * size}px`,
         color: crown.text,
@@ -236,7 +329,7 @@ export class RankingScene extends Phaser.Scene {
         stroke: crown.textStroke,
         strokeThickness: 2.5 * size,
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5));
   }
 
   createBackButton(x, y) {

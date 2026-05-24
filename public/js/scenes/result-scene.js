@@ -1,4 +1,4 @@
-import { BackendApi, createRankingStore, DEFAULT_GRAVITY_RANKING_TABLE } from '/src/backend/api.js';
+import { BackendApi, createRankingStore, DEFAULT_GRAVITY_RANKING_TABLE, DEFAULT_TIMED_RANKING_TABLE, DEFAULT_GRAVITY_TIMED_RANKING_TABLE } from '/src/backend/api.js';
 import { appState } from '../state/app-state.js';
 import { goToGame, goToGravityGame, goToHome } from '../app-init.js';
 
@@ -9,6 +9,16 @@ const normalBackendApi = new BackendApi({
 const gravityBackendApi = new BackendApi({
   rankingStore: createRankingStore(configEnv, {
     table: configEnv.SUPABASE_GRAVITY_RANKING_TABLE || DEFAULT_GRAVITY_RANKING_TABLE,
+  }),
+});
+const normalTimedBackendApi = new BackendApi({
+  rankingStore: createRankingStore(configEnv, {
+    table: configEnv.SUPABASE_TIMED_RANKING_TABLE || DEFAULT_TIMED_RANKING_TABLE,
+  }),
+});
+const gravityTimedBackendApi = new BackendApi({
+  rankingStore: createRankingStore(configEnv, {
+    table: configEnv.SUPABASE_GRAVITY_TIMED_RANKING_TABLE || DEFAULT_GRAVITY_TIMED_RANKING_TABLE,
   }),
 });
 
@@ -47,10 +57,15 @@ export class ResultScene extends Phaser.Scene {
     // erasedCounts インデックス: 0=あずき, 1=クッキー, 2=ストロベリー, 3=チョコミント
     this.totalErased  = this.erasedCounts.reduce((a, b) => a + b, 0);
     this.mode         = data?.mode ?? 'normal';
+    this.timeLimitOn  = data?.timeLimitOn  ?? false;
+    this.timeUp       = data?.timeUp       ?? false;
   }
 
   create() {
-    this._api = this.mode === 'gravity' ? gravityBackendApi : normalBackendApi;
+    const isGravity = this.mode === 'gravity';
+    this._untimedApi = isGravity ? gravityBackendApi      : normalBackendApi;
+    this._timedApi   = isGravity ? gravityTimedBackendApi : normalTimedBackendApi;
+    this._api        = this.timeLimitOn ? this._timedApi : this._untimedApi;
 
     // 背景: クリーム色
     this.cameras.main.setBackgroundColor('#FFF5DC');
@@ -249,14 +264,40 @@ export class ResultScene extends Phaser.Scene {
     this.add.text(PANEL_CX, y, 'ランキング', {
       fontSize: '14px', color: '#8B5E3C', fontFamily: 'sans-serif', fontStyle: '700',
     }).setOrigin(0.5, 0);
-    y += 22;
+    y += 18;
 
-    const rankingPlaceholder = this.add.text(PANEL_CX, y, '読み込み中...', {
-      fontSize: '13px', color: '#A0907A', fontFamily: 'sans-serif',
+    // 左列: 通常、右列: 時間制限  中央に区切り線
+    const midX = PANEL.x + PANEL.w / 2;
+    const lCX  = (PANEL.x + 14 + midX - 4) / 2;
+    const rCX  = (midX + 4 + PANEL.x + PANEL.w - 14) / 2;
+
+    this.add.text(lCX, y, '通常', {
+      fontSize: '12px', color: '#8B6040', fontFamily: 'sans-serif', fontStyle: '700',
     }).setOrigin(0.5, 0);
+    this.add.text(rCX, y, '時間制限（60秒）', {
+      fontSize: '12px', color: '#C05A80', fontFamily: 'sans-serif', fontStyle: '700',
+    }).setOrigin(0.5, 0);
+    y += 16;
+
+    // 縦区切り線
+    const rankingG = this.add.graphics();
+    rankingG.lineStyle(1, 0xC8965A, 0.5);
+    rankingG.beginPath();
+    rankingG.moveTo(midX, y);
+    rankingG.lineTo(midX, y + 100);
+    rankingG.strokePath();
 
     this._rankingStartY = y;
-    this.autoSaveAndRenderRanking(rankingPlaceholder);
+    this._rankingMidX   = midX;
+
+    const phL = this.add.text(lCX, y + 30, '読み込み中...', {
+      fontSize: '11px', color: '#A0907A', fontFamily: 'sans-serif',
+    }).setOrigin(0.5, 0);
+    const phR = this.add.text(rCX, y + 30, '読み込み中...', {
+      fontSize: '11px', color: '#A0907A', fontFamily: 'sans-serif',
+    }).setOrigin(0.5, 0);
+
+    this.autoSaveAndRenderRanking(phL, phR);
   }
 
   _sep(g, y) {
@@ -276,7 +317,7 @@ export class ResultScene extends Phaser.Scene {
       fontSize: '20px', color: '#ffffff', fontFamily: 'sans-serif', fontStyle: '700',
       backgroundColor: '#C05A00', padding: { x: 18, y: 9 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => this.mode === 'gravity' ? goToGravityGame() : goToGame());
+      .on('pointerdown', () => this.mode === 'gravity' ? goToGravityGame(this.timeLimitOn) : goToGame(this.timeLimitOn));
 
     this.add.text(bx + bw * 0.75, by, 'ホーム', {
       fontSize: '20px', color: '#ffffff', fontFamily: 'sans-serif', fontStyle: '700',
@@ -287,55 +328,72 @@ export class ResultScene extends Phaser.Scene {
 
   // ===== スコア登録 & ランキング表示 =====
 
-  async autoSaveAndRenderRanking(placeholder) {
+  async autoSaveAndRenderRanking(phL, phR) {
+    // 時間制限ONでゲームオーバー（時間切れ以外）の場合はランキング登録しない
+    const canSave = !this.timeLimitOn || this.timeUp;
     if (appState.playerSession) {
-      this.saveStatusText.setText('スコアを登録しています...');
-      try {
-        await this._api.saveScore(appState.playerSession.playerName, this.score, {
-          accessToken: appState.playerSession.accessToken,
-          gameId: `game-${Date.now()}`,
-        });
-        this.saveStatusText.setText('ランキングに登録しました！');
-      } catch (error) {
-        this.saveStatusText.setText(toFriendlyError(error));
-        this.saveStatusText.setColor('#fecaca');
+      if (!canSave) {
+        this.saveStatusText.setText('時間切れ以外の終了のため登録されません');
+        this.saveStatusText.setColor('#B090A8');
+      } else {
+        this.saveStatusText.setText('スコアを登録しています...');
+        try {
+          await this._api.saveScore(appState.playerSession.playerName, this.score, {
+            accessToken: appState.playerSession.accessToken,
+            gameId: `game-${Date.now()}`,
+          });
+          this.saveStatusText.setText('ランキングに登録しました！');
+        } catch (error) {
+          this.saveStatusText.setText(toFriendlyError(error));
+          this.saveStatusText.setColor('#fecaca');
+        }
       }
     }
-    await this.renderRanking(placeholder);
+    await Promise.all([
+      this._renderRankingColumn(this._untimedApi, phL, 'left'),
+      this._renderRankingColumn(this._timedApi,   phR, 'right'),
+    ]);
   }
 
-  async renderRanking(placeholder) {
+  async _renderRankingColumn(api, placeholder, side) {
+    const midX = this._rankingMidX;
+    const isLeft = side === 'left';
+    const colL = isLeft ? PANEL.x + 14       : midX + 4;
+    const colR = isLeft ? midX - 4            : PANEL.x + PANEL.w - 14;
+    const colW = colR - colL;
+    const nameX = colL + 18;
+    const scoreX = colR;
+    const rankX  = colL + 2;
+
     try {
-      const ranking = await this._api.getRanking();
-      if (ranking.length === 0) {
-        placeholder.setText('まだランキングがありません');
-        return;
-      }
+      const ranking = await api.getRanking();
       placeholder.destroy();
 
-      const lx  = PANEL.x + 18;
-      const nxX = PANEL.x + 48;
-      const rx  = PANEL.x + PANEL.w - 18;
+      if (ranking.length === 0) {
+        this.add.text(colL + colW / 2, this._rankingStartY + 30, 'まだ記録なし', {
+          fontSize: '11px', color: '#A0907A', fontFamily: 'sans-serif',
+        }).setOrigin(0.5, 0);
+        return;
+      }
+
       let y = this._rankingStartY;
-
-      ranking.slice(0, 5).forEach((entry, index) => {
-        const isTop  = index === 0;
-        const color  = isTop ? '#C05A00' : '#5C4A2A';
-
-        this.add.text(lx, y, `${index + 1}.`, {
-          fontSize: '13px', color, fontFamily: 'monospace', fontStyle: '700',
+      ranking.slice(0, 5).forEach((entry, i) => {
+        const color = i === 0 ? '#C05A00' : '#5C4A2A';
+        this.add.text(rankX, y, `${i + 1}.`, {
+          fontSize: '11px', color, fontFamily: 'monospace', fontStyle: '700',
         });
-        this.add.text(nxX, y, entry.playerName, {
-          fontSize: '13px', color: '#5C4A2A', fontFamily: 'sans-serif',
+        const maxNameW = colW - 44;
+        const name = entry.playerName.length > 6 ? entry.playerName.slice(0, 6) + '…' : entry.playerName;
+        this.add.text(nameX, y, name, {
+          fontSize: '11px', color: '#5C4A2A', fontFamily: 'sans-serif',
         });
-        this.add.text(rx, y, formatScore(entry.score), {
-          fontSize: '13px', color, fontFamily: 'monospace', fontStyle: '700',
+        this.add.text(scoreX, y, formatScore(entry.score), {
+          fontSize: '11px', color, fontFamily: 'monospace', fontStyle: '700',
         }).setOrigin(1, 0);
-
-        y += 20;
+        y += 18;
       });
     } catch (error) {
-      placeholder.setText(toFriendlyError(error));
+      placeholder.setText('エラー');
       placeholder.setColor('#fecaca');
     }
   }
