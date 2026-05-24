@@ -26,6 +26,14 @@ export class GravityGameScene extends Phaser.Scene {
       this.load.image('ice-strawberry-source', 'assets/images/ストロベリー.png');
     if (!this.textures.exists('ice-mint-source'))
       this.load.image('ice-mint-source',       'assets/images/チョコミント.png');
+    if (!this.cache.audio.has('normal-bgm'))
+      this.load.audio('normal-bgm',      'assets/images/ロックの素材倉庫/通常BGM.mp3');
+    if (!this.cache.audio.has('fever-bgm'))
+      this.load.audio('fever-bgm',       'assets/images/ロックの素材倉庫/フィーバーBGM.mp3');
+    if (!this.cache.audio.has('chain-first-se'))
+      this.load.audio('chain-first-se',  'assets/images/ロックの素材倉庫/1連鎖目SE.mp3');
+    if (!this.cache.audio.has('chain-combo-se'))
+      this.load.audio('chain-combo-se',  'assets/images/ロックの素材倉庫/2連鎖目以降.mp3');
   }
 
   create() {
@@ -444,11 +452,11 @@ export class GravityGameScene extends Phaser.Scene {
 
   createMobileControls() {
     const buttons = [
-      { x:612, y:520, radius:30,  label:'<',    fontSize:'30px',
+      { x:632, y:488, radius:28, label:'<',    fontSize:'29px',
         action: () => this.moveFallingPiece(-1) },
-      { x:684, y:520, radius:30,  label:'>',    fontSize:'30px',
+      { x:732, y:488, radius:28, label:'>',    fontSize:'29px',
         action: () => this.moveFallingPiece(1) },
-      { x:748, y:520, radius:34,  label:'DROP', fontSize:'16px',
+      { x:this.FRAME_X/2, y:488, radius:34, label:'DROP', fontSize:'16px',
         action: () => { if (this.gameStarted && !this.isPaused && this.fallingPiece) this.dropFallingPiece(); } },
     ];
     buttons.forEach(btn => {
@@ -577,6 +585,7 @@ export class GravityGameScene extends Phaser.Scene {
       this.gameStarted = true;
       this.elapsedPlayMs = 0;
       this.lastElapsedTimerUpdateTime = this.time.now;
+      this.startPastelBgm();
       this.spawnFallingPiece();
     });
   }
@@ -636,6 +645,7 @@ export class GravityGameScene extends Phaser.Scene {
     const piece = this.fallingPiece;
     this.fallingPiece = null;
 
+    this.playLandingSe();
     piece.setIgnoreGravity(false);
     piece._placedAt = this.time.now;
     this.placedPieces.push(piece);
@@ -1045,18 +1055,24 @@ export class GravityGameScene extends Phaser.Scene {
     this.feverGaugeScore    = 0;
     this.lastPauseTime      = this.time.now;
     this.lastFeverPauseTime = this.time.now;
+    this.startFeverBgm();
     this.playFeverSe();
     this.showFeverText();
     this.showFeverScreenEffect();
     this.updateFeverGauge();
-    // 溶けていたアイスを解凍してマッチ判定（ノーマルモードと同じ動作）
     const hasUnfrozen = this.unfreezeMeltedPieces();
     if (hasUnfrozen) this.scheduleMatchResolution();
   }
 
   updateFeverVisuals(time, delta) {
     if (time >= this.feverActiveUntil) {
-      if (!this.feverEndHandled) this.feverEndHandled = true;
+      if (!this.feverEndHandled) {
+        this.feverEndHandled = true;
+        this.feverGaugeScore = 0;
+        this.updateFeverGauge();
+        this.stopFeverBgm();
+        if (this.gameActive && this.gameStarted) this.startPastelBgm();
+      }
       this.clearFeverScreenEffect();
       return;
     }
@@ -1083,14 +1099,48 @@ export class GravityGameScene extends Phaser.Scene {
 
   // ─── エフェクト ───
 
-  playMatchEffect(pieces, chainCount) {
-    if (this.audioContext) {
-      const now = this.audioContext.currentTime;
-      this.playTone(783.99,  now,      0.18, 0.04,  'sparkle');
-      this.playTone(1046.50, now+0.09, 0.2,  0.045, 'sparkle');
-      this.playTone(1318.51, now+0.2,  0.22, 0.04,  'sparkle');
-      this.playTone(1567.98, now+0.33, 0.32, 0.032, 'sparkle');
+  playChainSe(chainCount) {
+    const key = chainCount === 1 ? 'chain-first-se' : 'chain-combo-se';
+    this.sound.play(key, { volume: chainCount === 1 ? 0.58 : 0.62 });
+  }
+
+  playLandingSe() {
+    this.prepareAudioContext();
+    if (!this.audioContext) return;
+    const now = this.audioContext.currentTime;
+    const thump = this.audioContext.createOscillator();
+    const thumpGain = this.audioContext.createGain();
+    const click = this.audioContext.createBufferSource();
+    const clickFilter = this.audioContext.createBiquadFilter();
+    const clickGain = this.audioContext.createGain();
+    const buf = this.audioContext.createBuffer(1, Math.floor(this.audioContext.sampleRate * 0.035), this.audioContext.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      const t = i / data.length;
+      data[i] = (Math.random() * 2 - 1) * (1 - t) * 0.35;
     }
+    thump.type = 'sine';
+    thump.frequency.setValueAtTime(150, now);
+    thump.frequency.exponentialRampToValueAtTime(86, now + 0.11);
+    thumpGain.gain.setValueAtTime(0.0001, now);
+    thumpGain.gain.linearRampToValueAtTime(0.12, now + 0.008);
+    thumpGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+    click.buffer = buf;
+    clickFilter.type = 'bandpass';
+    clickFilter.frequency.setValueAtTime(760, now);
+    clickFilter.Q.setValueAtTime(0.9, now);
+    clickGain.gain.setValueAtTime(0.055, now);
+    clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+    thump.connect(thumpGain); thumpGain.connect(this.masterGain);
+    click.connect(clickFilter); clickFilter.connect(clickGain); clickGain.connect(this.masterGain);
+    thump.start(now); thump.stop(now + 0.18);
+    click.start(now + 0.004); click.stop(now + 0.055);
+    thump.onended = () => { thump.disconnect(); thumpGain.disconnect(); };
+    click.onended = () => { click.disconnect(); clickFilter.disconnect(); clickGain.disconnect(); };
+  }
+
+  playMatchEffect(pieces, chainCount) {
+    this.playChainSe(chainCount);
     [...pieces].forEach((p,i) => {
       const bx = p.x, by = p.y;
       this.time.delayedCall(i*65, () => this.createBurst(bx, by));
@@ -1125,49 +1175,53 @@ export class GravityGameScene extends Phaser.Scene {
   // ─── BGM / SE ───
 
   createPastelBgm() {
-    this.bgmBeatMs = 220; this.bgmBeatIndex = 0; this.bgmStarted = false;
-    this.bgmMeasures = [
-      { chord:[261.63,329.63,392.00], bass:[261.63,392.00,329.63,392.00],
-        melody:[659.25,783.99,880.00,null,987.77,880.00,783.99,659.25] },
-      { chord:[349.23,440.00,523.25], bass:[349.23,523.25,440.00,523.25],
-        melody:[698.46,880.00,1046.50,1174.66,null,1046.50,880.00,698.46] },
-      { chord:[392.00,493.88,587.33], bass:[392.00,587.33,493.88,587.33],
-        melody:[783.99,987.77,1174.66,1318.51,1174.66,null,987.77,880.00] },
-      { chord:[329.63,392.00,493.88], bass:[329.63,493.88,392.00,493.88],
-        melody:[659.25,783.99,987.77,1046.50,987.77,880.00,783.99,659.25] },
-      { chord:[440.00,523.25,659.25], bass:[440.00,659.25,523.25,659.25],
-        melody:[880.00,1046.50,1174.66,1318.51,null,1174.66,1046.50,880.00] },
-      { chord:[392.00,493.88,659.25], bass:[392.00,659.25,493.88,659.25],
-        melody:[987.77,1174.66,1318.51,1567.98,1318.51,1174.66,null,987.77] },
-      { chord:[349.23,440.00,587.33], bass:[349.23,587.33,440.00,587.33],
-        melody:[880.00,1046.50,1174.66,1046.50,880.00,783.99,698.46,null] },
-      { chord:[392.00,523.25,659.25], bass:[392.00,659.25,523.25,659.25],
-        melody:[783.99,880.00,987.77,1046.50,880.00,783.99,659.25,523.25] },
-    ];
-    const start = () => this.startBgm();
-    this.time.delayedCall(300, start);
-    this.input.once('pointerdown', start);
-    this.input.keyboard.once('keydown', start);
+    this.bgmStarted = false;
+    const prepare = () => this.prepareAudioContext();
+    this.time.delayedCall(300, prepare);
+    this.input.once('pointerdown', prepare);
+    this.input.keyboard.once('keydown', prepare);
     this.game.events.on('focus', () => {
       if (this.audioContext?.state === 'suspended') this.audioContext.resume();
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       if (this.bgmLoop) { this.bgmLoop.remove(false); this.bgmLoop = null; }
+      if (this.normalBgm) { this.normalBgm.stop(); this.normalBgm.destroy(); this.normalBgm = null; }
+      if (this.feverBgm)  { this.feverBgm.stop();  this.feverBgm.destroy();  this.feverBgm  = null; }
       this.bgmStarted = false;
     });
   }
 
-  startBgm() {
-    if (this.bgmStarted && this.audioContext?.state === 'running') return;
+  prepareAudioContext() {
     const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    this.audioContext = this.audioContext || new AC();
-    this.setupAudio();
-    if (this.audioContext.state === 'suspended') this.audioContext.resume();
+    if (AC) {
+      this.audioContext = this.audioContext || new AC();
+      this.setupAudio();
+      if (this.audioContext.state === 'suspended') this.audioContext.resume();
+    }
+  }
+
+  startPastelBgm() {
+    if (this.bgmStarted && this.normalBgm?.isPlaying && this.audioContext?.state === 'running') return;
+    this.prepareAudioContext();
     this.bgmStarted = true;
-    if (this.bgmLoop) return;
-    this.playBgmBeat();
-    this.bgmLoop = this.time.addEvent({ delay:110, loop:true, callback:()=>this.playBgmBeat() });
+    if (this.feverBgm?.isPlaying) this.feverBgm.stop();
+    if (!this.normalBgm) {
+      this.normalBgm = this.sound.add('normal-bgm', { loop: true, volume: 0.45 });
+    }
+    if (!this.normalBgm.isPlaying) this.normalBgm.play();
+  }
+
+  startFeverBgm() {
+    this.prepareAudioContext();
+    if (this.normalBgm?.isPlaying) this.normalBgm.stop();
+    if (!this.feverBgm) {
+      this.feverBgm = this.sound.add('fever-bgm', { loop: true, volume: 0.48 });
+    }
+    if (!this.feverBgm.isPlaying) this.feverBgm.play();
+  }
+
+  stopFeverBgm() {
+    if (this.feverBgm?.isPlaying) this.feverBgm.stop();
   }
 
   setupAudio() {
@@ -1182,39 +1236,6 @@ export class GravityGameScene extends Phaser.Scene {
     this.audioLimiter.release.setValueAtTime(0.18, this.audioContext.currentTime);
     this.masterGain.connect(this.audioLimiter);
     this.audioLimiter.connect(this.audioContext.destination);
-  }
-
-  playBgmBeat() {
-    if (!this.audioContext) return;
-    const now     = this.audioContext.currentTime;
-    const measure = this.bgmMeasures[Math.floor(this.bgmBeatIndex/8) % this.bgmMeasures.length];
-    const beat    = this.bgmBeatIndex % 8;
-    const isFever = this.time.now < this.feverActiveUntil;
-    const bs      = (isFever ? this.bgmBeatMs*0.72 : this.bgmBeatMs) / 1000;
-
-    if (this.bgmBeatIndex % 2 === 1) {
-      if (isFever) this.playTone(measure.chord[beat%measure.chord.length]*2, now, bs*0.4, 0.024, 'sparkle');
-      this.bgmBeatIndex++;
-      return;
-    }
-
-    const mel = measure.melody[beat];
-    if (mel) {
-      const isPhraseEnd = beat===3 || beat===7;
-      this.playTone(mel, now, isPhraseEnd ? bs*1.35 : bs*0.92, isFever?0.072:0.05, 'lead');
-      if (isFever) this.playTone(mel*1.5, now+bs*0.18, bs*0.65, 0.032, 'sparkle');
-    }
-
-    this.playTone(measure.chord[beat%measure.chord.length], now+bs*0.5, bs*0.58, isFever?0.024:0.016, 'chord');
-
-    if (beat % 2 === 0) {
-      this.playTone(measure.bass[Math.floor(beat/2)%measure.bass.length], now, bs*1.55, isFever?0.045:0.03, 'bass');
-      if (isFever) measure.chord.forEach(n => this.playTone(n*2, now+bs*0.08, bs*1.1, 0.018, 'chord'));
-    }
-
-    if (beat===6 && mel) this.playTone(mel*2, now+bs*0.25, bs*0.45, isFever?0.035:0.018, 'sparkle');
-
-    this.bgmBeatIndex++;
   }
 
   playTone(freq, start, dur, vol, role) {
@@ -1274,6 +1295,8 @@ export class GravityGameScene extends Phaser.Scene {
 
   playGameOverBgm() {
     if (this.bgmLoop) { this.bgmLoop.remove(false); this.bgmLoop = null; }
+    if (this.normalBgm?.isPlaying) this.normalBgm.stop();
+    if (this.feverBgm?.isPlaying)  this.feverBgm.stop();
     if (!this.audioContext) return;
     const now = this.audioContext.currentTime;
     [659.25,587.33,523.25,392.00].forEach((n,i) =>
