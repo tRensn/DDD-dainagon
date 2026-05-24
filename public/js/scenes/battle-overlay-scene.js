@@ -19,7 +19,7 @@ export class BattleOverlayScene extends Phaser.Scene {
     this._gameKey = gameKey;
 
     // ─── 相手スコアパネル（タイマーパネルの下）───
-    const px = 14, py = 272, pw = 210, ph = 62;
+    const px = 14, py = 360, pw = 210, ph = 62;
     const panel = this.add.graphics();
     panel.fillStyle(0xFFFDF7, 0.88);
     panel.fillRoundedRect(px, py, pw, ph, 12);

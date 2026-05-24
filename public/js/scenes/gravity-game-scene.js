@@ -67,6 +67,7 @@ export class GravityGameScene extends Phaser.Scene {
     this.lastPauseTime              = 0;
     this.lastFeverPauseTime         = 0;
     this.meltTimeMs                 = 8000;
+    this.meltAnimationMs            = 760;
     this.elapsedPlayMs              = 0;
     this.lastElapsedTimerUpdateTime = 0;
     this.lastDisplayedElapsedSecond = -1;
@@ -337,42 +338,37 @@ export class GravityGameScene extends Phaser.Scene {
       stroke:'#FFFFFF', strokeThickness:5,
     }).setShadow(2,2,'#A9DDF7',2,true,true).setDepth(15);
 
-    // スコアパネル（フレーム上部中央）
-    const spX = this.FRAME_X, spY = 24, spW = this.FRAME_WIDTH, spH = 58;
-    const panel = this.add.graphics().setDepth(14);
-    panel.fillStyle(0xFFFDF7, 0.84);
-    panel.fillRoundedRect(spX, spY, spW, spH, 14);
-    panel.lineStyle(4, 0xF6A7C8, 0.92);
-    panel.strokeRoundedRect(spX, spY, spW, spH, 14);
-    panel.lineStyle(2, 0xFFF7FB, 0.95);
-    panel.strokeRoundedRect(spX+4, spY+4, spW-8, spH-8, 11);
+    // スコアパネル（左側・タイマーの下）
+    const scorePanel = this.add.graphics().setDepth(14);
+    scorePanel.fillStyle(0xFFFDF7, 0.84);
+    scorePanel.fillRoundedRect(14, 270, 206, 58, 12);
+    scorePanel.lineStyle(3, 0xF6A7C8, 0.92);
+    scorePanel.strokeRoundedRect(14, 270, 206, 58, 12);
+    scorePanel.lineStyle(2, 0xFFF7FB, 0.95);
+    scorePanel.strokeRoundedRect(18, 274, 198, 50, 9);
 
-    this.scoreText = this.add.text(0, 0, 'スコア: 0', {
-      fontSize:'26px', fill:'#7F6BAE', fontStyle:'bold',
+    this.scoreText = this.add.text(28, 299, 'スコア: 0', {
+      fontSize:'24px', fill:'#7F6BAE', fontStyle:'bold',
       stroke:'#FFFFFF', strokeThickness:5,
-    });
-    this.scoreText.setPosition(spX+22, spY+spH/2);
-    this.scoreText.setOrigin(0, 0.5);
-    this.scoreText.setShadow(2,2,'#F6A7C8',2,true,true);
-    this.scoreText.setDepth(15);
+    }).setOrigin(0, 0.5).setShadow(2,2,'#F6A7C8',2,true,true).setDepth(15);
   }
 
   createFeverGauge() {
-    const panelX = this.FRAME_X + 20;
-    const panelY = this.scale.height - 44;
-    const panelW = this.FRAME_WIDTH - 40;
-    const panelH = 34;
+    const panelX = this.FRAME_X;
+    const panelY = 24;
+    const panelW = this.FRAME_WIDTH;
+    const panelH = 58;
     const panel  = this.add.graphics().setDepth(14);
     panel.fillStyle(0xFFFDF7, 0.96);
-    panel.fillRoundedRect(panelX, panelY, panelW, panelH, 10);
-    panel.lineStyle(5, 0xF6A7C8, 1);
-    panel.strokeRoundedRect(panelX, panelY, panelW, panelH, 10);
-    panel.lineStyle(2, 0xFFE68A, 0.95);
-    panel.strokeRoundedRect(panelX+3, panelY+3, panelW-6, panelH-6, 8);
+    panel.fillRoundedRect(panelX, panelY, panelW, panelH, 14);
+    panel.lineStyle(4, 0xF6A7C8, 0.92);
+    panel.strokeRoundedRect(panelX, panelY, panelW, panelH, 14);
+    panel.lineStyle(2, 0xFFF7FB, 0.95);
+    panel.strokeRoundedRect(panelX+4, panelY+4, panelW-8, panelH-8, 11);
 
     this.feverGauge = {
-      x: panelX+12, y: panelY+10,
-      width: panelW-24, height: 16,
+      x: panelX+24, y: panelY+21,
+      width: panelW-48, height: 16,
       graphics: this.add.graphics().setDepth(15),
     };
     this.updateFeverGauge();
@@ -480,7 +476,7 @@ export class GravityGameScene extends Phaser.Scene {
     const isFever = this.time.now < this.feverActiveUntil;
     const progress = isFever
       ? Phaser.Math.Clamp((this.feverActiveUntil - this.time.now) / this.feverDurationMs, 0, 1)
-      : Phaser.Math.Clamp(this.feverGaugeScore / 12, 0, 1);
+      : Phaser.Math.Clamp(this.feverGaugeScore / 20, 0, 1);
     const { x, y, width:w, height:h, graphics:g } = this.feverGauge;
     g.clear();
     g.fillStyle(0xFFFFFF, 0.95); g.fillRoundedRect(x,y,w,h,8);
@@ -747,24 +743,28 @@ export class GravityGameScene extends Phaser.Scene {
     Phaser.Physics.Matter.Matter.Body.setVelocity(p.body, { x:0, y:0 });
     Phaser.Physics.Matter.Matter.Body.setAngularVelocity(p.body, 0);
     Phaser.Physics.Matter.Matter.Body.setStatic(p.body, true);
-    // Body.scale はボディを再生成せず頂点を直接縮小するため、静的化後に安全に使える。
-    // setCircle はボディ再生成で一時的に動的状態になり上方向に飛ぶため使わない。
     Phaser.Physics.Matter.Matter.Body.scale(p.body, MELTED_RADIUS / ICE_RADIUS, MELTED_RADIUS / ICE_RADIUS);
     p._iceRadius = MELTED_RADIUS;
     p.setVisible(false);
 
-    // ノーマルモードの createMeltedIceCreamOverlay と同一の溶け見た目
     const x = p.x, y = p.y;
+    const animMs  = this.meltAnimationMs;
+    const puddleY = y + 29;
+
     const meltTint    = this.add.circle(x, y, 25, 0xDDEBFF, 0.12).setDepth(5);
     const meltedShape = this.add.image(x, y + 12, this.ICE_TYPES[p._iceType].texture)
       .setScale(0.84, 0.52).setAlpha(0.32).setTint(0xDDEBFF).setDepth(5);
-    const syrup = this.add.graphics().setDepth(6);
-    const puddleY = y + 29;
-    const shadow   = this.add.ellipse(x,     puddleY + 4, 48, 14, 0x7F6BAE, 0.10).setDepth(5);
-    const puddle   = this.add.ellipse(x,     puddleY,     44, 14, 0xFFFFFF, 0.46).setDepth(5);
-    const dripL    = this.add.ellipse(x - 15, puddleY + 6, 12,  7, 0xFFFFFF, 0.42).setDepth(5);
-    const dripR    = this.add.ellipse(x + 16, puddleY + 7, 14,  8, 0xDDEBFF, 0.44).setDepth(5);
-    const shine    = this.add.ellipse(x -  7, puddleY - 2, 14,  4, 0xFFF7FB, 0.56).setDepth(5);
+    const syrup  = this.add.graphics().setDepth(6);
+    const shadow = this.add.ellipse(x,      puddleY + 4, 48, 14, 0x7F6BAE, 0.10).setDepth(5);
+    const puddle = this.add.ellipse(x,      puddleY,     44, 14, 0xFFFFFF, 0.46).setDepth(5);
+    const dripL  = this.add.ellipse(x - 15, puddleY + 6, 12,  7, 0xFFFFFF, 0.42).setDepth(5);
+    const dripR  = this.add.ellipse(x + 16, puddleY + 7, 14,  8, 0xDDEBFF, 0.44).setDepth(5);
+    const shine  = this.add.ellipse(x -  7, puddleY - 2, 14,  4, 0xFFF7FB, 0.56).setDepth(5);
+    const flowingDrops = [
+      this.add.ellipse(x - 18, y +  5, 7, 13, 0xFFFFFF, 0.38).setDepth(7),
+      this.add.ellipse(x +  2, y + 11, 6, 12, 0xDDEBFF, 0.34).setDepth(7),
+      this.add.ellipse(x + 18, y +  3, 7, 14, 0xFFFFFF, 0.36).setDepth(7),
+    ];
 
     syrup.fillStyle(0xFFFFFF, 0.42);
     syrup.fillRoundedRect(x - 20, y - 3, 7, 22, 4);
@@ -775,7 +775,23 @@ export class GravityGameScene extends Phaser.Scene {
     syrup.fillCircle(x + 19, y + 22, 6);
     syrup.fillCircle(x +  2, y + 20, 4);
 
-    p._meltParts = [meltTint, meltedShape, syrup, shadow, puddle, dripL, dripR, shine];
+    // フェードイン（ノーマルモードの animate=true と同じ）
+    [meltTint, meltedShape, syrup, shadow, puddle, dripL, dripR, shine, ...flowingDrops].forEach(o => o.setAlpha(0));
+    meltedShape.setY(y + 4).setScale(0.78, 0.78);
+    puddle.setScale(0.25, 0.35); dripL.setScale(0.2, 0.25); dripR.setScale(0.2, 0.25);
+    shine.setScale(0.25, 0.4);  shadow.setScale(0.2, 0.35);
+    flowingDrops.forEach(d => d.setScale(0.25, 0.2));
+
+    this.tweens.add({ targets: [meltTint, syrup, shadow, puddle, dripL, dripR, shine, ...flowingDrops], alpha: { from: 0, to: 1 }, duration: animMs, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: meltedShape, y: y + 12, alpha: 0.32, scaleX: 0.84, scaleY: 0.52, duration: animMs, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: [puddle, dripL, dripR, shine, shadow], scaleX: 1, scaleY: 1, duration: animMs, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: flowingDrops, scaleX: 1, scaleY: 1, duration: animMs, ease: 'Back.easeOut' });
+
+    // ループ（呼吸）アニメーション
+    this.tweens.add({ targets: meltTint,    scale: 1.18, alpha: 0.22, delay: animMs, duration: 1700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: meltedShape, y: y + 16, scaleX: 0.84 * 1.08, scaleY: 0.52 * 0.92, delay: animMs, duration: 1900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+    p._meltParts = [meltTint, meltedShape, syrup, shadow, puddle, dripL, dripR, shine, ...flowingDrops];
   }
 
   unfreezeMeltedPieces() {
@@ -1020,7 +1036,7 @@ export class GravityGameScene extends Phaser.Scene {
   checkFeverTime(clearedCount) {
     if (clearedCount <= 0 || this.time.now < this.feverActiveUntil) return;
     this.feverGaugeScore += clearedCount;
-    if (this.feverGaugeScore >= 12) { this.feverGaugeScore = 0; this.startFeverTime(); }
+    if (this.feverGaugeScore >= 20) { this.feverGaugeScore = 0; this.startFeverTime(); }
   }
 
   startFeverTime() {
@@ -1335,17 +1351,30 @@ export class GravityGameScene extends Phaser.Scene {
     this.tweens.add({ targets: spotlight, alpha: 0.42, duration: 820, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
     const lightColors = [0xFFE68A, 0xF8AFC9, 0xA9E8D1, 0xA9DDF7];
+    const lightPositions = [];
     const leftX = fx + 10, rightX = fx + fw - 10;
     const topY = fy + 10, bottomY = this.scale.height - 22;
+
+    // フレーム上部ライト（フィーバーラベル付近を除く）
+    for (let i = 0; i < 8; i++) {
+      const t = i / 7;
+      const lx = Phaser.Math.Linear(leftX + 22, rightX - 22, t);
+      if (Math.abs(lx - fx - fw / 2) >= 86) lightPositions.push({ x: lx, y: topY });
+    }
+    // フレーム左右ライト
     for (let i = 0; i < 6; i++) {
       const t = i / 5;
-      [leftX, rightX].forEach(lx => {
-        const light = this.add.circle(lx, Phaser.Math.Linear(topY + 58, bottomY, t), 7, lightColors[i % 4], 0.92).setDepth(13);
-        effects.push(light);
-        this.tweens.add({ targets: light, scale: 2.35, alpha: 0.22, duration: 430 + (i % 4) * 90, repeat: -1, yoyo: true, ease: 'Sine.easeInOut' });
-      });
+      lightPositions.push({ x: leftX,  y: Phaser.Math.Linear(topY + 58, bottomY, t) });
+      lightPositions.push({ x: rightX, y: Phaser.Math.Linear(topY + 58, bottomY, t) });
     }
-    for (let i = 0; i < 20; i++) {
+    lightPositions.forEach((pos, idx) => {
+      const light = this.add.circle(pos.x, pos.y, 7, lightColors[idx % 4], 0.92).setDepth(13);
+      effects.push(light);
+      this.tweens.add({ targets: light, scale: 2.35, alpha: 0.22, duration: 430 + (idx % 4) * 90, repeat: -1, yoyo: true, ease: 'Sine.easeInOut' });
+    });
+
+    // 背景スター
+    for (let i = 0; i < 26; i++) {
       const side = i % 2 === 0 ? -1 : 1;
       const sx = side < 0 ? Phaser.Math.Between(24, 104) : Phaser.Math.Between(696, 776);
       const sy = Phaser.Math.Between(70, 520);
@@ -1353,6 +1382,20 @@ export class GravityGameScene extends Phaser.Scene {
       effects.push(star);
       this.tweens.add({ targets: star, y: sy - Phaser.Math.Between(28, 64), angle: Phaser.Math.Between(160, 320), alpha: 0.18, duration: Phaser.Math.Between(1200, 2200), repeat: -1, yoyo: true, ease: 'Sine.easeInOut' });
     }
+
+    // 上部スパークル
+    const labelCX = fx + fw / 2;
+    for (let i = 0; i < 14; i++) {
+      const useLeft = i % 2 === 0;
+      const sx = useLeft
+        ? Phaser.Math.Between(36, Math.max(36, labelCX - 132))
+        : Phaser.Math.Between(Math.min(this.scale.width - 36, labelCX + 132), this.scale.width - 36);
+      const sy = Phaser.Math.Between(18, 82);
+      const sparkle = this.add.star(sx, sy, 4, 3, 7, lightColors[(i + 2) % 4], 0.72).setDepth(13).setAngle(Phaser.Math.Between(0, 45));
+      effects.push(sparkle);
+      this.tweens.add({ targets: sparkle, x: sx + Phaser.Math.Between(-18, 18), y: sy + Phaser.Math.Between(12, 28), angle: Phaser.Math.Between(120, 260), alpha: 0.2, duration: Phaser.Math.Between(850, 1500), repeat: -1, yoyo: true, ease: 'Sine.easeInOut' });
+    }
+
     this.feverScreenEffect = { overlay, frameGlow, effects };
   }
 
