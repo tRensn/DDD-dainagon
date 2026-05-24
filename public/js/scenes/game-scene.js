@@ -17,6 +17,10 @@ export class GameScene extends Phaser.Scene {
         this.load.image('ice-cookie-source', 'assets/images/クッキーアンドクリーム.png');
         this.load.image('ice-strawberry-source', 'assets/images/ストロベリー.png');
         this.load.image('ice-mint-source', 'assets/images/チョコミント.png');
+        this.load.audio('normal-bgm', 'assets/images/ロックの素材倉庫/通常BGM.mp3');
+        this.load.audio('fever-bgm', 'assets/images/ロックの素材倉庫/フィーバーBGM.mp3');
+        this.load.audio('chain-first-se', 'assets/images/ロックの素材倉庫/1連鎖目SE.mp3');
+        this.load.audio('chain-combo-se', 'assets/images/ロックの素材倉庫/2連鎖目以降.mp3');
         // 画像やアセットの読み込みはここで行います
     }
 
@@ -887,13 +891,13 @@ export class GameScene extends Phaser.Scene {
         ];
         this.bgmStarted = false;
 
-        const startBgm = () => {
-            this.startPastelBgm();
+        const prepareAudio = () => {
+            this.prepareAudioContext();
         };
 
-        this.time.delayedCall(300, startBgm);
-        this.input.once('pointerdown', startBgm);
-        this.input.keyboard.once('keydown', startBgm);
+        this.time.delayedCall(300, prepareAudio);
+        this.input.once('pointerdown', prepareAudio);
+        this.input.keyboard.once('keydown', prepareAudio);
         this.game.events.on('focus', () => {
             if (this.audioContext?.state === 'suspended') {
                 this.audioContext.resume();
@@ -904,32 +908,78 @@ export class GameScene extends Phaser.Scene {
                 this.bgmLoop.remove(false);
                 this.bgmLoop = null;
             }
+            if (this.normalBgm) {
+                this.normalBgm.stop();
+                this.normalBgm.destroy();
+                this.normalBgm = null;
+            }
+            if (this.feverBgm) {
+                this.feverBgm.stop();
+                this.feverBgm.destroy();
+                this.feverBgm = null;
+            }
             this.bgmStarted = false;
         });
     }
 
-    startPastelBgm() {
-        if (this.bgmStarted && this.audioContext?.state === 'running') return;
-
+    prepareAudioContext() {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContext) return;
+        if (AudioContext) {
+            this.audioContext = this.audioContext || new AudioContext();
+            this.setupAudioOutput();
 
-        this.audioContext = this.audioContext || new AudioContext();
-        this.setupAudioOutput();
-
-        if (this.audioContext.state === 'suspended') {
-            this.audioContext.resume();
+            if (this.audioContext.state === 'suspended') {
+                this.audioContext.resume();
+            }
         }
+    }
+
+    startPastelBgm() {
+        if (this.bgmStarted && this.normalBgm?.isPlaying && this.audioContext?.state === 'running') return;
+
+        this.prepareAudioContext();
 
         this.bgmStarted = true;
-        if (this.bgmLoop) return;
 
-        this.playBgmNote();
-        this.bgmLoop = this.time.addEvent({
-            delay: 110,
-            loop: true,
-            callback: () => this.playBgmNote()
-        });
+        if (this.feverBgm?.isPlaying) {
+            this.feverBgm.stop();
+        }
+
+        if (!this.normalBgm) {
+            this.normalBgm = this.sound.add('normal-bgm', {
+                loop: true,
+                volume: 0.45
+            });
+        }
+
+        if (!this.normalBgm.isPlaying) {
+            this.normalBgm.play();
+        }
+    }
+
+    startFeverBgm() {
+        this.prepareAudioContext();
+
+        if (this.normalBgm?.isPlaying) {
+            this.normalBgm.stop();
+        }
+
+        if (!this.feverBgm) {
+            this.feverBgm = this.sound.add('fever-bgm', {
+                loop: true,
+                volume: 0.48
+            });
+        }
+
+        if (!this.feverBgm.isPlaying) {
+            this.feverBgm.play();
+        }
+    }
+
+    stopFeverBgm() {
+        if (this.feverBgm?.isPlaying) {
+            this.feverBgm.stop();
+        }
     }
 
     setupAudioOutput() {
@@ -1234,6 +1284,16 @@ export class GameScene extends Phaser.Scene {
             this.bgmLoop.remove(false);
             this.bgmLoop = null;
         }
+        if (this.normalBgm) {
+            this.normalBgm.stop();
+            this.normalBgm.destroy();
+            this.normalBgm = null;
+        }
+        if (this.feverBgm) {
+            this.feverBgm.stop();
+            this.feverBgm.destroy();
+            this.feverBgm = null;
+        }
         this.bgmStarted = false;
 
         if (this.browserKeyBlocker) {
@@ -1431,6 +1491,7 @@ export class GameScene extends Phaser.Scene {
             this.elapsedPlayMs = 0;
             this.lastElapsedTimerUpdateTime = this.time.now;
             this.updateElapsedTimeText();
+            this.startPastelBgm();
             this.spawnNextIceCream();
         });
         this.countdownEvents.push(startGameEvent);
@@ -1476,6 +1537,65 @@ export class GameScene extends Phaser.Scene {
         const now = this.audioContext.currentTime;
         this.playInstrumentTone(587.33, now, 0.07, 0.026, 'sparkle');
         this.playInstrumentTone(783.99, now + 0.025, 0.08, 0.018, 'sparkle');
+    }
+
+    playLandingSe() {
+        this.prepareAudioContext();
+        if (!this.audioContext) return;
+
+        const now = this.audioContext.currentTime;
+        const thump = this.audioContext.createOscillator();
+        const thumpGain = this.audioContext.createGain();
+        const click = this.audioContext.createBufferSource();
+        const clickFilter = this.audioContext.createBiquadFilter();
+        const clickGain = this.audioContext.createGain();
+        const buffer = this.audioContext.createBuffer(1, Math.floor(this.audioContext.sampleRate * 0.035), this.audioContext.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        for (let i = 0; i < data.length; i++) {
+            const t = i / data.length;
+            data[i] = (Math.random() * 2 - 1) * (1 - t) * 0.35;
+        }
+
+        thump.type = 'sine';
+        thump.frequency.setValueAtTime(150, now);
+        thump.frequency.exponentialRampToValueAtTime(86, now + 0.11);
+        thumpGain.gain.setValueAtTime(0.0001, now);
+        thumpGain.gain.linearRampToValueAtTime(0.12, now + 0.008);
+        thumpGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+
+        click.buffer = buffer;
+        clickFilter.type = 'bandpass';
+        clickFilter.frequency.setValueAtTime(760, now);
+        clickFilter.Q.setValueAtTime(0.9, now);
+        clickGain.gain.setValueAtTime(0.055, now);
+        clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+
+        thump.connect(thumpGain);
+        thumpGain.connect(this.masterGain);
+        click.connect(clickFilter);
+        clickFilter.connect(clickGain);
+        clickGain.connect(this.masterGain);
+
+        thump.start(now);
+        thump.stop(now + 0.18);
+        click.start(now + 0.004);
+        click.stop(now + 0.055);
+
+        thump.onended = () => {
+            thump.disconnect();
+            thumpGain.disconnect();
+        };
+        click.onended = () => {
+            click.disconnect();
+            clickFilter.disconnect();
+            clickGain.disconnect();
+        };
+    }
+
+    playChainSe(chainCount) {
+        const key = chainCount === 1 ? 'chain-first-se' : 'chain-combo-se';
+        this.sound.play(key, { volume: chainCount === 1 ? 0.58 : 0.62 });
     }
 
     spawnNextIceCream() {
@@ -1597,6 +1717,7 @@ export class GameScene extends Phaser.Scene {
             placedAt: this.time.now,
             melted: false
         };
+        this.playLandingSe();
 
         if (this.fallingSprite) {
             this.fallingSprite.destroy();
@@ -2021,13 +2142,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     playTsumMatchEffect(targetIndexes, chainCount) {
-        if (this.audioContext) {
-            const now = this.audioContext.currentTime;
-            this.playInstrumentTone(783.99, now, 0.18, 0.04, 'sparkle');
-            this.playInstrumentTone(1046.50, now + 0.09, 0.2, 0.045, 'sparkle');
-            this.playInstrumentTone(1318.51, now + 0.2, 0.22, 0.04, 'sparkle');
-            this.playInstrumentTone(1567.98, now + 0.33, 0.32, 0.032, 'sparkle');
-        }
+        this.playChainSe(chainCount);
 
         targetIndexes.forEach((index, order) => {
             const piece = this.tsumPieces[index];
@@ -2072,6 +2187,7 @@ export class GameScene extends Phaser.Scene {
         this.lastPausedTimerUpdateTime = this.time.now;
         this.lastFeverPauseUpdateTime = this.time.now;
         const hasFrozenIceCreams = this.freezeMeltedIceCreams();
+        this.startFeverBgm();
         this.playFeverSe();
         this.showFeverText();
         this.showFeverScreenEffect();
@@ -2183,13 +2299,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     playMatchEffect(removeTargets, chainCount) {
-        if (this.audioContext) {
-            const now = this.audioContext.currentTime;
-            this.playInstrumentTone(783.99, now, 0.18, 0.04, 'sparkle');
-            this.playInstrumentTone(1046.50, now + 0.09, 0.2, 0.045, 'sparkle');
-            this.playInstrumentTone(1318.51, now + 0.2, 0.22, 0.04, 'sparkle');
-            this.playInstrumentTone(1567.98, now + 0.33, 0.32, 0.032, 'sparkle');
-        }
+        this.playChainSe(chainCount);
 
         removeTargets.forEach((target, index) => {
             const [row, col] = target.split(',').map(Number);
@@ -2433,6 +2543,10 @@ export class GameScene extends Phaser.Scene {
                 this.feverGaugeScore = 0;
                 this.updateFeverGauge();
                 this.feverEndHandled = true;
+                this.stopFeverBgm();
+                if (this.gameActive && this.gameStarted) {
+                    this.startPastelBgm();
+                }
             }
             this.clearFeverScreenEffect();
             return;
@@ -3325,6 +3439,12 @@ export class GameScene extends Phaser.Scene {
         if (this.bgmLoop) {
             this.bgmLoop.remove(false);
             this.bgmLoop = null;
+        }
+        if (this.normalBgm?.isPlaying) {
+            this.normalBgm.stop();
+        }
+        if (this.feverBgm?.isPlaying) {
+            this.feverBgm.stop();
         }
 
         if (!this.audioContext) return;
