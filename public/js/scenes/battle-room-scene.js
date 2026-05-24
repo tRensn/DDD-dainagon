@@ -41,7 +41,7 @@ export class BattleRoomScene extends Phaser.Scene {
       stroke: '#FFFFFF', strokeThickness: 3,
     }).setOrigin(0.5);
 
-    this.statusText = this.add.text(400, 490, '', {
+    this.statusText = this.add.text(400, 455, '', {
       fontSize: '16px', color: '#7F6BAE', fontFamily: 'sans-serif',
       align: 'center', stroke: '#FFFFFF', strokeThickness: 3,
     }).setOrigin(0.5);
@@ -176,6 +176,11 @@ export class BattleRoomScene extends Phaser.Scene {
       stroke: '#FFFFFF', strokeThickness: 3,
     }).setOrigin(0.5));
 
+    const validationText = this._track(this.add.text(400, 262, '', {
+      fontSize: '16px', color: '#E85D75', fontFamily: 'sans-serif',
+      stroke: '#FFFFFF', strokeThickness: 2,
+    }).setOrigin(0.5));
+
     const wrapper = document.createElement('div');
     wrapper.style.cssText = [
       'background:rgba(255,253,247,0.95)',
@@ -220,13 +225,16 @@ export class BattleRoomScene extends Phaser.Scene {
     this._track(this.add.dom(400, 308, wrapper));
     const inputEl = inp;
 
+    let cancelBtn;
     const confirmBtn = this._makeBtn(400, 385, '入 室', async () => {
       const code = inputEl.value.toUpperCase().trim();
       if (code.length !== 4) {
-        this.statusText.setText('4文字のコードを入力してください');
+        validationText.setText('4文字のコードを入力してください');
         return;
       }
+      validationText.setText('');
       confirmBtn.zone.disableInteractive();
+      if (cancelBtn) { cancelBtn.bg.setVisible(false); cancelBtn.txt.setVisible(false); cancelBtn.zone.disableInteractive(); }
       this.statusText.setText('部屋を探しています...');
       try {
         const room = await this.store.join(code, guestName);
@@ -255,13 +263,13 @@ export class BattleRoomScene extends Phaser.Scene {
           },
         });
       } catch (e) {
-        this.statusText.setText(`エラー: ${e.message}`).setColor('#E85D75');
+        this.statusText.setText(e.message).setColor('#E85D75');
         confirmBtn.zone.setInteractive({ useHandCursor: true });
       }
     }, 0xF6A7C8, '#C05A80');
     this._content.push(confirmBtn.bg, confirmBtn.txt, confirmBtn.zone);
 
-    const cancelBtn = this._makeBtn(400, 470, 'キャンセル', () => {
+    cancelBtn = this._makeBtn(400, 470, 'キャンセル', () => {
       this._showMainButtons();
     }, 0xCCBBCC, '#9A8CC2', true);
     this._content.push(cancelBtn.bg, cancelBtn.txt, cancelBtn.zone);
