@@ -64,9 +64,13 @@ const game = new Phaser.Game(gameConfig);
 export function goToHome() {
   game.scene.stop('LoginScene');
   game.scene.stop('GameScene');
+  game.scene.stop('GravityGameScene');
   game.scene.stop('HowToScene');
   game.scene.stop('RankingScene');
   game.scene.stop('ResultScene');
+  game.scene.stop('BattleRoomScene');
+  game.scene.stop('BattleOverlayScene');
+  game.scene.stop('BattleResultScene');
   game.scene.start('HomeScene');
 }
 
