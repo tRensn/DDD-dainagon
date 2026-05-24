@@ -12,6 +12,10 @@ import { GravityGameScene } from './scenes/gravity-game-scene.js';
 import { HowToScene } from './scenes/how-to-scene.js';
 import { RankingScene } from './scenes/ranking-scene.js';
 import { ModeSelectScene } from './scenes/mode-select-scene.js';
+import { BattleModeSelectScene } from './scenes/battle-mode-select-scene.js';
+import { BattleRoomScene } from './scenes/battle-room-scene.js';
+import { BattleOverlayScene } from './scenes/battle-overlay-scene.js';
+import { BattleResultScene } from './scenes/battle-result-scene.js';
 import { setMockSession } from './state/app-state.js';
 
 const sceneEntries = [
@@ -23,6 +27,10 @@ const sceneEntries = [
   ['GravityGameScene', GravityGameScene],
   ['ResultScene', ResultScene],
   ['ModeSelectScene', ModeSelectScene],
+  ['BattleModeSelectScene', BattleModeSelectScene],
+  ['BattleRoomScene', BattleRoomScene],
+  ['BattleOverlayScene', BattleOverlayScene],
+  ['BattleResultScene', BattleResultScene],
 ];
 
 // ===== Phaser ゲーム設定 =====
@@ -34,6 +42,10 @@ const gameConfig = {
   height: 600,
   transparent: true,
   dom: { createContainer: true },
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
   physics: {
     default: 'matter',
     matter: { gravity: { y: 0 }, debug: false },
@@ -97,6 +109,43 @@ export function goToRanking() {
   game.scene.stop('HomeScene');
   game.scene.stop('HowToScene');
   game.scene.start('RankingScene');
+}
+
+/**
+ * 対戦モード選択モーダルを表示
+ */
+export function showBattleModeSelect() {
+  game.scene.launch('BattleModeSelectScene');
+  game.scene.bringToTop('BattleModeSelectScene');
+}
+
+/**
+ * 対戦部屋シーンへ遷移
+ */
+export function goToBattleRoom(currentScene, mode) {
+  currentScene.scene.stop('BattleModeSelectScene');
+  game.scene.stop('HomeScene');
+  game.scene.start('BattleRoomScene', { mode });
+}
+
+/**
+ * 対戦ゲームを開始（選んだモードのゲームシーン + オーバーレイを起動）
+ */
+export function goToBattleGame(currentScene, battleConfig) {
+  const gameKey = battleConfig.mode === 'gravity' ? 'GravityGameScene' : 'GameScene';
+  currentScene.scene.start(gameKey, { timeLimitOn: true, battleConfig });
+  currentScene.scene.launch('BattleOverlayScene', { battleConfig });
+  currentScene.scene.bringToTop('BattleOverlayScene');
+}
+
+/**
+ * 対戦結果シーンへ遷移
+ */
+export function goToBattleResult(currentScene, resultData) {
+  game.scene.stop('GameScene');
+  game.scene.stop('GravityGameScene');
+  game.scene.stop('BattleOverlayScene');
+  game.scene.start('BattleResultScene', resultData);
 }
 
 /**
