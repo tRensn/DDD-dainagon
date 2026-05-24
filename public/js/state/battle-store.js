@@ -26,6 +26,7 @@ export function createBattleStore() {
           room_code: roomCode, mode, host_name: hostName,
           status: 'waiting', host_score: 0, guest_score: 0,
           host_finished: false, guest_finished: false,
+          host_rematch: false, guest_rematch: false,
         }),
       });
       if (!res.ok) throw new Error(`部屋の作成に失敗しました (${res.status})`);
