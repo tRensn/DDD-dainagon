@@ -48,22 +48,22 @@ export class BattleRoomScene extends Phaser.Scene {
 
     if (!this.store) {
       this.statusText.setText('Supabaseが設定されていないため\n対戦機能を使用できません').setColor('#E85D75');
-      this._makeBtn(400, 510, 'ホームに戻る', () => goToHome());
+      this._makeBtn(400, 510, 'ホームに戻る', () => goToHome(), 0xCCBBCC, '#9A8CC2', true, 0xFCEEFF);
       return;
     }
 
-    this._makeBtn(400, 540, 'ホームに戻る', () => goToHome(), 0xCCBBCC, '#9A8CC2', true);
+    this._makeBtn(400, 540, 'ホームに戻る', () => goToHome(), 0xCCBBCC, '#9A8CC2', true, 0xFCEEFF);
     this._showMainButtons();
   }
 
   // ─── ボタンヘルパー ───
 
-  _makeBtn(cx, cy, label, onClick, strokeHex = 0xF6A7C8, textColor = '#7F6BAE', small = false) {
+  _makeBtn(cx, cy, label, onClick, strokeHex = 0xF6A7C8, textColor = '#7F6BAE', small = false, fillHex = 0xFFFDF7) {
     const W = small ? 160 : 210, H = small ? 44 : 58, R = 14;
     const bg = this.add.graphics();
     const draw = alpha => {
       bg.clear();
-      bg.fillStyle(0xFFFDF7, alpha);
+      bg.fillStyle(fillHex, alpha);
       bg.fillRoundedRect(cx - W/2, cy - H/2, W, H, R);
       bg.lineStyle(4, strokeHex, 1);
       bg.strokeRoundedRect(cx - W/2, cy - H/2, W, H, R);
@@ -261,7 +261,7 @@ export class BattleRoomScene extends Phaser.Scene {
     }, 0xF6A7C8, '#C05A80');
     this._content.push(confirmBtn.bg, confirmBtn.txt, confirmBtn.zone);
 
-    const cancelBtn = this._makeBtn(400, 440, 'キャンセル', () => {
+    const cancelBtn = this._makeBtn(400, 470, 'キャンセル', () => {
       this._showMainButtons();
     }, 0xCCBBCC, '#9A8CC2', true);
     this._content.push(cancelBtn.bg, cancelBtn.txt, cancelBtn.zone);
