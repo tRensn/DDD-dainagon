@@ -37,6 +37,16 @@ export class BattleModeSelectScene extends Phaser.Scene {
     closeBtn.on('pointerover', () => closeBtn.setColor('#E05070'));
     closeBtn.on('pointerout',  () => closeBtn.setColor('#C07898'));
 
+    // ─── ？ボタン（遊び方） ───
+    this._howToPanel = null;
+    const htBtn = this.add.text(CX - CW/2 + 24, CY - CH/2 + 24, '？', {
+      fontSize: '17px', color: '#C07898', fontFamily: 'sans-serif', fontStyle: '700',
+      backgroundColor: '#FFE8F0', padding: { x: 7, y: 4 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    htBtn.on('pointerdown', () => this._showHowTo());
+    htBtn.on('pointerover', () => htBtn.setColor('#E05070'));
+    htBtn.on('pointerout',  () => htBtn.setColor('#C07898'));
+
     this._modeCard(
       CX - 120, CY + 42,
       'ノーマルモード',
@@ -100,5 +110,44 @@ export class BattleModeSelectScene extends Phaser.Scene {
     zone.on('pointerdown', onClick);
     zone.on('pointerover', () => draw(0.72));
     zone.on('pointerout',  () => draw(1));
+  }
+
+  _showHowTo() {
+    if (this._howToPanel) return;
+    const CX = 400, CY = 300, CW = 510, CH = 340;
+    const PX = CX - CW/2 + 10, PY = CY - CH/2 + 10;
+    const PW = CW - 20, PH = CH - 20;
+
+    const c = this.add.container(0, 0);
+    this._howToPanel = c;
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0xFFF5F8, 0.98);
+    bg.fillRoundedRect(PX, PY, PW, PH, 14);
+    bg.lineStyle(4, 0xF6A7C8, 1);
+    bg.strokeRoundedRect(PX, PY, PW, PH, 14);
+    c.add(bg);
+
+    c.add(this.add.text(CX, PY + 34, 'あそびかた（対戦）', {
+      fontSize: '22px', color: '#E85D75', fontFamily: 'sans-serif', fontStyle: '700',
+      stroke: '#FFFFFF', strokeThickness: 5,
+    }).setOrigin(0.5));
+
+    c.add(this.add.text(PX + 20, PY + 68,
+      '← → でアイスを動かそう\nスペースキー（DROPボタン）で落とせるよ\n同じアイスを3つ以上そろえると消えるよ\n60秒で対戦相手より多くスコアを稼いだほうが勝ち！\nフィーバータイムでスコアを一気に稼ごう！',
+      {
+        fontSize: '14px', color: '#7F6BAE', fontFamily: 'sans-serif',
+        lineSpacing: 10, stroke: '#FFFFFF', strokeThickness: 3,
+      }
+    ));
+
+    const closeBtn = this.add.text(PX + PW - 20, PY + 20, '✕', {
+      fontSize: '17px', color: '#C07898', fontFamily: 'sans-serif', fontStyle: '700',
+      backgroundColor: '#FFE8F0', padding: { x: 7, y: 4 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerdown', () => { c.destroy(true); this._howToPanel = null; });
+    closeBtn.on('pointerover', () => closeBtn.setColor('#E05070'));
+    closeBtn.on('pointerout',  () => closeBtn.setColor('#C07898'));
+    c.add(closeBtn);
   }
 }
