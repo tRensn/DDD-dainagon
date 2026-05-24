@@ -379,12 +379,16 @@ export class HomeScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(5);
 
-    this.createMenuButton(400, 250, 'あそびかた', () => goToHowTo());
-    this.createMenuButton(400, 340, 'スタート', () => {
+    this.createMenuButton(400, 228, 'あそびかた', () => goToHowTo());
+    this.createMenuButton(400, 306, 'ソロ', () => {
       this.scene.launch('ModeSelectScene');
       this.scene.bringToTop('ModeSelectScene');
     });
-    this.createMenuButton(400, 430, 'ランキング', () => goToRanking());
+    this.createMenuButton(400, 384, '対戦', () => {
+      this.scene.launch('BattleModeSelectScene');
+      this.scene.bringToTop('BattleModeSelectScene');
+    });
+    this.createMenuButton(400, 462, 'ランキング', () => goToRanking());
   }
 
   createMenuButton(centerX, centerY, label, onClick) {

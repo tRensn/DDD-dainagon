@@ -12,7 +12,8 @@ export class GravityGameScene extends Phaser.Scene {
   }
 
   init(data) {
-    this.timeLimitOn = data?.timeLimitOn ?? false;
+    this.timeLimitOn  = data?.timeLimitOn  ?? false;
+    this.battleConfig = data?.battleConfig ?? null;
   }
 
   preload() {
@@ -948,8 +949,13 @@ export class GravityGameScene extends Phaser.Scene {
         stroke:'#FFFFFF', strokeThickness:4,
       }).setOrigin(0.5).setDepth(9);
     });
-    this.time.delayedCall(3000, () =>
-      goToResult(this.score, { maxChain:this.maxChain, erasedCounts:this.erasedCounts, mode:'gravity', timeLimitOn:this.timeLimitOn, timeUp:this._timeUp }));
+    this.time.delayedCall(3000, () => {
+      if (this.battleConfig) {
+        this.events.emit('battle-end', this.score);
+        return;
+      }
+      goToResult(this.score, { maxChain:this.maxChain, erasedCounts:this.erasedCounts, mode:'gravity', timeLimitOn:this.timeLimitOn, timeUp:this._timeUp });
+    });
   }
 
   // ─── スコアポップアップ ───

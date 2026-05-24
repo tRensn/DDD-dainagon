@@ -7,7 +7,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     init(data) {
-        this.timeLimitOn = data?.timeLimitOn ?? false;
+        this.timeLimitOn  = data?.timeLimitOn  ?? false;
+        this.battleConfig = data?.battleConfig ?? null;
     }
 
     preload() {
@@ -3401,6 +3402,11 @@ export class GameScene extends Phaser.Scene {
         });
 
         this.time.delayedCall(3000, () => {
+            if (this.battleConfig) {
+              // 対戦モード: BattleOverlayScene に最終スコアを通知して遷移を委譲
+              this.events.emit('battle-end', this.score);
+              return;
+            }
             goToResult(this.score, { maxChain: this.maxChain, erasedCounts: this.erasedCounts, timeLimitOn: this.timeLimitOn, timeUp: this._timeUp });
         });
     }
