@@ -21,6 +21,7 @@ export class GameScene extends Phaser.Scene {
         this.load.audio('fever-bgm', 'assets/images/ロックの素材倉庫/フィーバーBGM.mp3');
         this.load.audio('chain-first-se', 'assets/images/ロックの素材倉庫/1連鎖目SE.mp3');
         this.load.audio('chain-combo-se', 'assets/images/ロックの素材倉庫/2連鎖目以降.mp3');
+        this.load.audio('decision-se', 'assets/images/ロックの素材倉庫/決定SE.mp3');
         // 画像やアセットの読み込みはここで行います
     }
 
@@ -471,7 +472,7 @@ export class GameScene extends Phaser.Scene {
         ];
         this.dropSpeed = this.dropSpeedLevels[0].speed;
         this.horizontalPassThroughMs = 260;
-        this.meltTimeMs = 20000;
+        this.meltTimeMs = 15000;
         this.feverGaugeScore = 0;
         this.feverDurationMs = 10000;
         this.feverActiveUntil = 0;
@@ -1306,7 +1307,11 @@ export class GameScene extends Phaser.Scene {
         this.inputSetupDone = false;
     }
 
-    togglePause() {
+    togglePause(playSe = true) {
+        if (playSe) {
+            this.playDecisionSe();
+        }
+
         this.isPaused = !this.isPaused;
         this.lastPausedTimerUpdateTime = this.time.now;
         this.lastFeverPauseUpdateTime = this.time.now;
@@ -1359,7 +1364,7 @@ export class GameScene extends Phaser.Scene {
             this.scene.restart();
         });
         const restartButton = this.createPauseMenuButton(x, y + 88, 176, 40, 'リスタート', () => {
-            this.togglePause();
+            this.togglePause(false);
         });
         const homeButton = this.createPauseMenuButton(x, y + 134, 176, 40, 'ホーム画面へ', () => {
             this.prepareSceneRestart();
@@ -1394,7 +1399,9 @@ export class GameScene extends Phaser.Scene {
             if (event) event.stopPropagation();
             base.setAlpha(0.72);
             label.setScale(0.95);
-            action();
+            hitArea.disableInteractive();
+            this.playDecisionSe();
+            this.time.delayedCall(140, action);
         });
         hitArea.on('pointerup', () => {
             base.setAlpha(1);
@@ -1596,6 +1603,10 @@ export class GameScene extends Phaser.Scene {
     playChainSe(chainCount) {
         const key = chainCount === 1 ? 'chain-first-se' : 'chain-combo-se';
         this.sound.play(key, { volume: chainCount === 1 ? 0.58 : 0.62 });
+    }
+
+    playDecisionSe() {
+        this.sound.play('decision-se', { volume: 0.72 });
     }
 
     spawnNextIceCream() {
